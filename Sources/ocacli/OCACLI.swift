@@ -25,6 +25,8 @@ final class OCACLI: Command {
     var hostname: String?
     @CommandArgument(short: "p", long: "port", description: "Device port")
     var port: Int?
+    @CommandOption(short: "U", long: "udp", description: "Use datagram sockets")
+    var udp: Bool
     @CommandOption(long: "help", description: "Show usage description")
     var help: Bool
     @CommandFlags // Inject the flags object
@@ -83,7 +85,7 @@ final class OCACLI: Command {
 
         try Task.synchronous {
             guard let lineReader = self.lineReader else { throw Ocp1Error.invalidHandle }
-            let context = try await Context(hostname: hostname, port: port)
+            let context = try await Context(hostname: hostname, port: port, datagram: self.udp)
 
             lineReader.setCompletionCallback { currentBuffer in
                 guard let completions = self.commands.getCompletions(

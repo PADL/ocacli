@@ -63,7 +63,7 @@ final class Context {
     // TODO: UDP support
     // TODO: domain socket support
 
-    init(hostname: String, port: Int) async throws {
+    init(hostname: String, port: Int, datagram: Bool) async throws {
         guard let port = UInt16(exactly: port) else {
             throw Ocp1Error.serviceResolutionFailed
         }
@@ -89,10 +89,11 @@ final class Context {
                         deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
                     }
                 }
-                connection = try await Ocp1TCPConnection(
-                    deviceAddress: deviceAddressData,
-                    options: options
-                )
+                if datagram {
+                    connection = try await Ocp1UDPConnection(deviceAddress: deviceAddressData, options: options)
+                } else {
+                    connection = try await Ocp1TCPConnection(deviceAddress: deviceAddressData, options: options)
+                }
                 if let connection {
                     try await connection.connect()
                     break
