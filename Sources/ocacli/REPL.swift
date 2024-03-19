@@ -40,6 +40,16 @@ protocol REPLCommand {
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]?
 }
 
+extension REPLCommand {
+    static var isUsableWhenDisconnected: Bool {
+        self == Help.self || self == Connect.self || self == Exit.self
+    }
+
+    var isUsableWhenDisconnected: Bool {
+        Self.isUsableWhenDisconnected
+    }
+}
+
 protocol REPLCurrentBlockCompletable: REPLCommand {}
 
 extension REPLCurrentBlockCompletable {

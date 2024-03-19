@@ -107,6 +107,11 @@ final class OCACLI: Command {
                     }
 
                     let command = try await self.commands.command(from: tokens, context: context)
+                    if await context.connection.isConnected == false && command
+                        .isUsableWhenDisconnected == false
+                    {
+                        throw Ocp1Error.notConnected
+                    }
                     try await command.execute(with: context)
                     lineReader.addHistory(commandLine)
                 } catch LineReaderError.CTRLC, LineReaderError.EOF {
