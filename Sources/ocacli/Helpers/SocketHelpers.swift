@@ -43,7 +43,9 @@ extension sockaddr_in {
         address.sin_family = sa_family_t(AF_INET)
         address.sin_addr = try in_addr(string)
         if let port { address.sin_port = port.bigEndian }
+#if canImport(Darwin)
         address.sin_len = UInt8(MemoryLayout<Self>.size)
+#endif
         self = address
     }
 }
@@ -54,7 +56,9 @@ extension sockaddr_in6 {
         address.sin6_family = sa_family_t(AF_INET6)
         address.sin6_addr = try in6_addr(string)
         if let port { address.sin6_port = port.bigEndian }
+#if canImport(Darwin)
         address.sin6_len = UInt8(MemoryLayout<Self>.size)
+#endif
         self = address
     }
 }

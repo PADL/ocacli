@@ -89,7 +89,7 @@ final class Context {
                         deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
                     }
                 }
-                connection = await Ocp1TCPConnection(
+                connection = try await Ocp1TCPConnection(
                     deviceAddress: deviceAddressData,
                     options: options
                 )
