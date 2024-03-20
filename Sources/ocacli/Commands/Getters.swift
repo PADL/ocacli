@@ -71,7 +71,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
         property: String,
         keyPath: PartialKeyPath<OcaRoot>
     ) async throws {
-        let value = try await getValueStringRepresentation(
+        let value = try await getValueDescription(
             context: context,
             object: object,
             keyPath: keyPath
@@ -104,7 +104,7 @@ struct Get: REPLCommand {
         var foundProperty = false
         for property in context.currentObject.allPropertyKeyPaths.sorted(by: { $1.key > $0.key }) {
             if property.key == propertyName {
-                let value = try await getValueStringRepresentation(
+                let value = try await getValueDescription(
                     context: context,
                     object: context.currentObject,
                     keyPath: property.value

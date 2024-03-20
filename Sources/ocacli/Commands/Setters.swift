@@ -41,7 +41,7 @@ struct Set: REPLCommand {
             throw Ocp1Error.status(.parameterError)
         }
 
-        try await setValueStringRepresentation(
+        try await setValueDescription(
             context: context,
             object: context.currentObject,
             keyPath: foundProperty.1,

@@ -131,7 +131,7 @@ extension Ocp1Connection {
     }
 }
 
-func getValueStringRepresentation(
+func getValueDescription(
     context: Context,
     object: OcaRoot,
     keyPath: PartialKeyPath<OcaRoot>
@@ -150,6 +150,16 @@ func getValueStringRepresentation(
     }
 }
 
+func setValueDescription(
+    context: Context,
+    object: OcaRoot,
+    keyPath: PartialKeyPath<OcaRoot>,
+    value: String
+) async throws {
+    let subject = object[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
+    try await subject._set(object, description: value)
+}
+
 func getObjectJsonRepresentation(
     context: Context,
     object: OcaRoot,
@@ -160,16 +170,4 @@ func getObjectJsonRepresentation(
         options: options
     )
     return jsonResultData
-}
-
-func setValueStringRepresentation(
-    context: Context,
-    object: OcaRoot,
-    keyPath: PartialKeyPath<OcaRoot>,
-    value: String
-) async throws {
-    let subject = object[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
-
-    // here we are relying on _setJsonValue() to handle type conversion
-    try await subject._setJsonValue(object, value)
 }
