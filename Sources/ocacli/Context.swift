@@ -129,6 +129,30 @@ final class Context {
     private(set) var currentObjectPath: OcaNamePath? = [""]
     private(set) var currentObjectCompletions: [String]? = [] // bool if container
 
+    func findObject(
+        with pathComponents: OcaNamePath,
+        relativeTo baseObject: OcaBlock
+    ) async throws -> (OcaObjectIdentification, OcaString) {
+        let flags =
+            OcaObjectSearchResultFlags([.oNo, .classIdentification, .containerPath, .role])
+        let searchResult = try await baseObject.find(
+            actionObjectsByPath: pathComponents,
+            resultFlags: flags
+        )
+
+        guard searchResult.count == 1, let oNo = searchResult[0].oNo,
+              let role = searchResult[0].role,
+              let classIdentification = searchResult[0].classIdentification
+        else {
+            throw Ocp1Error.objectNotPresent
+        }
+
+        return (OcaObjectIdentification(
+            oNo: oNo,
+            classIdentification: classIdentification
+        ), role)
+    }
+
     func resolvePath<T: OcaRoot>(_ path: String) async throws -> T {
         let object: OcaRoot?
 
@@ -154,29 +178,16 @@ final class Context {
             ) as? OcaBlock else {
                 throw Ocp1Error.objectClassMismatch
             }
+
             if pathComponents.0.isEmpty {
                 object = baseObject
             } else {
-                let flags =
-                    OcaObjectSearchResultFlags([.oNo, .classIdentification, .containerPath, .role])
-                let searchResult = try await baseObject.find(
-                    actionObjectsByPath: pathComponents.0,
-                    resultFlags: flags
+                let (objectIdentification, role) = try await findObject(
+                    with: pathComponents.0,
+                    relativeTo: baseObject
                 )
 
-                guard searchResult.count == 1, let oNo = searchResult[0].oNo,
-                      let role = searchResult[0].role,
-                      let classIdentification = searchResult[0].classIdentification
-                else {
-                    throw Ocp1Error.objectNotPresent
-                }
-
-                object = await connection
-                    .resolve(object: OcaObjectIdentification(
-                        oNo: oNo,
-                        classIdentification: classIdentification
-                    ))
-
+                object = await connection.resolve(object: objectIdentification)
                 object?.cacheRole(role)
             }
         }
