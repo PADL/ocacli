@@ -49,12 +49,6 @@ extension OcaObjectIdentification: REPLStringConvertible {
     }
 }
 
-extension OcaBoundedPropertyValue: REPLStringConvertible {
-    func replString(context: Context, object: SwiftOCA.OcaRoot) async -> String {
-        String(describing: value)
-    }
-}
-
 struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["show", "cat"]
 

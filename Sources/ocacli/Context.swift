@@ -90,9 +90,15 @@ final class Context {
                     }
                 }
                 if datagram {
-                    connection = try await Ocp1UDPConnection(deviceAddress: deviceAddressData, options: options)
+                    connection = try await Ocp1UDPConnection(
+                        deviceAddress: deviceAddressData,
+                        options: options
+                    )
                 } else {
-                    connection = try await Ocp1TCPConnection(deviceAddress: deviceAddressData, options: options)
+                    connection = try await Ocp1TCPConnection(
+                        deviceAddress: deviceAddressData,
+                        options: options
+                    )
                 }
                 if let connection {
                     try await connection.connect()
