@@ -17,10 +17,8 @@
 import Foundation
 import SwiftOCA
 
-protocol OcaBlockMarkerProtocol {}
-
 @OcaConnection
-extension OcaBlock: OcaBlockMarkerProtocol {
+extension OcaBlock {
     var cachedActionObjectRoles: [(OcaRoot, OcaString)] {
         get async throws {
             guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
