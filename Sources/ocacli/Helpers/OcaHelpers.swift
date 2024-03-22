@@ -30,6 +30,57 @@ extension OcaBlock: OcaBlockMarkerProtocol {
 }
 
 extension OcaRoot {
+    private var _cachedRolePath: OcaNamePath? {
+        get async {
+            var path = [String]()
+
+            var ownerONo: OcaONo = OcaInvalidONo
+            var currentObject = self
+
+            repeat {
+                guard let role = try? await currentObject.getRole() else {
+                    return nil
+                }
+
+                if let ownableObject = currentObject as? OcaOwnable,
+                   case let .success(owner) = ownableObject.owner
+                {
+                    ownerONo = owner
+                } else {
+                    return nil
+                }
+
+                guard ownerONo != OcaInvalidONo else {
+                    break // we are at the root
+                }
+
+                path.insert(role, at: 0)
+
+                guard let cachedObject = await connectionDelegate?.resolve(cachedObject: ownerONo)
+                else {
+                    return nil
+                }
+                currentObject = cachedObject
+            } while true
+
+            return path
+        }
+    }
+
+    var rolePath: OcaNamePath {
+        get async throws {
+            if objectNumber == OcaRootBlockONo {
+                return []
+            } else if let localRolePath = await _cachedRolePath {
+                return localRolePath
+            } else if let self = self as? OcaOwnable {
+                return try await self.path.0
+            } else {
+                throw Ocp1Error.objectClassMismatch
+            }
+        }
+    }
+
     var rolePathString: String {
         get async {
             if let rolePath = try? await rolePath {
