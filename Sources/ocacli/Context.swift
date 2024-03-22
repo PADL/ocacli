@@ -154,11 +154,10 @@ final class Context {
         try? await connection.disconnect()
     }
 
-    @OcaConnection
     func findObjectCached(
         rolePath path: OcaNamePath,
         relativeTo baseObject: OcaBlock
-    ) throws -> OcaRoot {
+    ) async throws -> OcaRoot {
         precondition(contextFlags.contains(.enableRolePathLookupCache))
 
         var object: OcaRoot! = baseObject
@@ -169,19 +168,9 @@ final class Context {
 
             var childObject: OcaRoot?
 
-            guard let actionObjects = try? block.actionObjects.asOptionalResult().get() else {
-                throw Ocp1Error.noInitialValue
-            }
-
-            for actionObjectIdentifier in actionObjects {
-                guard let actionObject = connection
-                    .resolve(cachedObject: actionObjectIdentifier.oNo),
-                    let role = try? actionObject.role.asOptionalResult().get()
-                else {
-                    throw Ocp1Error.noInitialValue
-                }
-                if role == pathComponent {
-                    childObject = actionObject
+            for role in try await block.cachedActionObjectRoles {
+                if role.1 == pathComponent {
+                    childObject = role.0
                     break
                 }
             }
@@ -351,7 +340,7 @@ final class Context {
         currentObject = object
         currentObjectPath = newRolePath
         if let object = object as? OcaBlock {
-            currentObjectCompletions = try? await object.actionObjectRoles.map { role in
+            currentObjectCompletions = try? await object.cachedActionObjectRoles.map { _, role in
                 role.contains(" ") ? "\"\(role)\"" : role
             }
             currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {

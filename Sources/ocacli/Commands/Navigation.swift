@@ -94,8 +94,9 @@ struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
             return
         }
 
-        try await object.actionObjectRoles.forEach {
-            print($0)
+        for object in try await object.resolveActionObjects() {
+            let role = (try? await object.getRole()) ?? object.objectNumber.oNoString
+            context.print(role)
         }
     }
 }

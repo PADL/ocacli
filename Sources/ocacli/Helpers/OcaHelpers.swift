@@ -19,16 +19,31 @@ import SwiftOCA
 
 protocol OcaBlockMarkerProtocol {}
 
+@OcaConnection
 extension OcaBlock: OcaBlockMarkerProtocol {
-    var actionObjectRoles: [String] {
+    var cachedActionObjectRoles: [(OcaRoot, OcaString)] {
         get async throws {
-            try await resolveActionObjects().asyncMap { object in
-                (try? await object.getRole()) ?? object.objectNumber.oNoString
+            guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
+                throw Ocp1Error.noInitialValue
             }
+
+            var roles = [(OcaRoot, OcaString)]()
+
+            for actionObject in actionObjects {
+                if let actionObject = connectionDelegate?
+                    .resolve(cachedObject: actionObject.oNo),
+                    let role = try? actionObject.role.asOptionalResult().get()
+                {
+                    roles.append((actionObject, role))
+                }
+            }
+
+            return roles
         }
     }
 }
 
+@OcaConnection
 extension OcaRoot {
     var rolePath: OcaNamePath {
         get async throws {
