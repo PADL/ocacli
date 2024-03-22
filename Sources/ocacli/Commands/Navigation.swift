@@ -94,8 +94,16 @@ struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
             return
         }
 
-        for object in try await object.resolveActionObjects() {
-            let role = (try? await object.getRole()) ?? object.objectNumber.oNoString
+        let actionObjects = try await object.resolveActionObjects()
+
+        await withTaskGroup(of: String.self, returning: [String].self) { taskGroup in
+            for actionObject in actionObjects {
+                taskGroup.addTask {
+                    (try? await actionObject.getRole()) ?? object.objectNumber.oNoString
+                }
+            }
+            return await taskGroup.collect()
+        }.sorted().forEach { role in
             context.print(role)
         }
     }

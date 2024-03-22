@@ -81,7 +81,11 @@ struct ContextFlags: OptionSet {
 
 final class Context {
     let connection: Ocp1Connection
-    var contextFlags: ContextFlags = [.enableRolePathLookupCache, .supportsFindActionObjectsByPath]
+    var contextFlags: ContextFlags = [
+        .enableRolePathLookupCache,
+        .supportsFindActionObjectsByPath,
+        .refreshDeviceTreeOnConnection,
+    ]
     var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
 
     // TODO: UDP support
@@ -295,10 +299,8 @@ final class Context {
             object = try await connection.resolve(objectOfUnknownClass: oNo)
         } else if path == "." {
             object = currentObject
-        } else if path == "..", let currentObject = currentObject as? OcaOwnable {
-            guard let owner = try currentObject.owner.asOptionalResult().get() else {
-                throw Ocp1Error.objectNotPresent
-            }
+        } else if path == "..", let currentObject = currentObject as? _OcaOwnablePrivate {
+            let owner = try await currentObject.getOwner()
             object = await connection
                 .resolve(object: OcaObjectIdentification(
                     oNo: owner,
@@ -335,20 +337,29 @@ final class Context {
         try await changeCurrentPath(to: object)
     }
 
-    func changeCurrentPath(to object: OcaRoot) async throws {
-        let newRolePath = try await object.rolePath
-        currentObject = object
-        currentObjectPath = newRolePath
+    private func _resolveObjectCompletions(
+        _ object: OcaRoot,
+        path: OcaNamePath
+    ) async throws -> [String]? {
+        var currentObjectCompletions: [String]?
         if let object = object as? OcaBlock {
             currentObjectCompletions = try? await object.cachedActionObjectRoles.map { _, role in
                 role.contains(" ") ? "\"\(role)\"" : role
             }
             currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {
-                Array($0.prefix(newRolePath.count)) == newRolePath
+                Array($0.prefix(path.count)) == path
             }.map { pathComponentsToPathString($0) })
         } else {
             currentObjectCompletions = nil
         }
+        return currentObjectCompletions
+    }
+
+    func changeCurrentPath(to object: OcaRoot) async throws {
+        let newRolePath = try await object.rolePath
+        currentObject = object
+        currentObjectPath = newRolePath
+        currentObjectCompletions = try? await _resolveObjectCompletions(object, path: newRolePath)
     }
 
     var currentPathString: String {

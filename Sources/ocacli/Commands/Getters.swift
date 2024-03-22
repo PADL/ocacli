@@ -64,26 +64,37 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
         object: OcaRoot,
         property: String,
         keyPath: PartialKeyPath<OcaRoot>
-    ) async throws {
+    ) async throws -> (String, String?) {
         let value = try await getValueDescription(
             context: context,
             object: object,
             keyPath: keyPath
         )
-        context.print("\(property): \(value ?? "null")")
+        return (property, value)
     }
 
     static func show(
         context: Context,
         object: OcaRoot
     ) async throws {
-        for property in object.allPropertyKeyPaths.sorted(by: { $1.key > $0.key }) {
-            try await show(
-                context: context,
-                object: object,
-                property: property.key,
-                keyPath: property.value
-            )
+        let results = try await withThrowingTaskGroup(
+            of: (String, String?).self,
+            returning: [(String, String?)].self
+        ) { taskGroup in
+            for property in object.allPropertyKeyPaths {
+                taskGroup.addTask {
+                    try await show(
+                        context: context,
+                        object: object,
+                        property: property.key,
+                        keyPath: property.value
+                    )
+                }
+            }
+            return try await taskGroup.collect()
+        }
+        for result in results.sorted(by: { $1.0 > $0.0 }) {
+            context.print("\(result.0): \(result.1 ?? "null")")
         }
     }
 

@@ -33,7 +33,7 @@ extension Context {
     }
 }
 
-private protocol _OcaOwnablePrivate: OcaOwnable {
+protocol _OcaOwnablePrivate: OcaOwnable {
     func getOwner() async throws -> OcaONo
 }
 
