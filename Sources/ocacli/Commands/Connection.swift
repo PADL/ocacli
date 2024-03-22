@@ -44,3 +44,16 @@ struct Disconnect: REPLCommand {
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+struct DeviceInfo: REPLCommand {
+    static let name = ["device-info"]
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let deviceManager = await context.connection.deviceManager
+        return try await Show.show(context: context, object: deviceManager)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

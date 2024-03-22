@@ -59,7 +59,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
 
     init() {}
 
-    func show(
+    static func show(
         context: Context,
         object: OcaRoot,
         property: String,
@@ -73,8 +73,10 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
         context.print("\(property): \(value ?? "null")")
     }
 
-    func execute(with context: Context) async throws {
-        let object = object ?? context.currentObject
+    static func show(
+        context: Context,
+        object: OcaRoot
+    ) async throws {
         for property in object.allPropertyKeyPaths.sorted(by: { $1.key > $0.key }) {
             try await show(
                 context: context,
@@ -83,6 +85,11 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
                 keyPath: property.value
             )
         }
+    }
+
+    func execute(with context: Context) async throws {
+        let object = object ?? context.currentObject
+        try await Self.show(context: context, object: object)
     }
 }
 

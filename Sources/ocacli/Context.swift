@@ -18,8 +18,15 @@ import Foundation
 import SwiftOCA
 
 enum ContextFlagsNames: Int, CaseIterable {
+    /// cache property lookups
     case cacheProperties = 0
+    /// subscribe to property events, so properties are updated asynchronously
     case subscribePropertyEvents = 1
+    /// connected device supports findActionObjectsByPath() method
+    case supportsFindActionObjectsByPath = 2
+    case enableRolePathLookupCache = 3
+    case refreshDeviceTreeOnConnection = 4
+    case automaticReconnect = 5
 
     init?(string: String) {
         for flag in Self.allCases {
@@ -48,20 +55,43 @@ struct ContextFlags: OptionSet {
 
     static let cacheProperties = ContextFlags(ContextFlagsNames.cacheProperties)
     static let subscribePropertyEvents = ContextFlags(ContextFlagsNames.subscribePropertyEvents)
+    static let supportsFindActionObjectsByPath = ContextFlags(
+        ContextFlagsNames
+            .supportsFindActionObjectsByPath
+    )
+    static let enableRolePathLookupCache = ContextFlags(ContextFlagsNames.enableRolePathLookupCache)
+    static let refreshDeviceTreeOnConnection = ContextFlags(
+        ContextFlagsNames
+            .refreshDeviceTreeOnConnection
+    )
+    static let automaticReconnect = ContextFlags(ContextFlagsNames.automaticReconnect)
 
     init?(string: String) {
         guard let flagName = ContextFlagsNames(string: string) else { return nil }
         self.init(flagName)
     }
+
+    var connectionOptions: Ocp1ConnectionOptions {
+        Ocp1ConnectionOptions(
+            automaticReconnect: contains(.automaticReconnect),
+            refreshDeviceTreeOnConnection: contains(.refreshDeviceTreeOnConnection)
+        )
+    }
 }
 
 final class Context {
     let connection: Ocp1Connection
-    var contextFlags = ContextFlags()
+    var contextFlags: ContextFlags = [.enableRolePathLookupCache, .supportsFindActionObjectsByPath]
     var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
 
     // TODO: UDP support
     // TODO: domain socket support
+
+    private(set) var currentObject: OcaRoot
+    private(set) var currentObjectPath: OcaNamePath? = [""]
+    private(set) var currentObjectCompletions: [String]? = [] // bool if container
+    private var sparseRolePathCache: [OcaNamePath: OcaRoot] =
+        [:] // cache FindObjectsByRole() results
 
     init(hostname: String, port: Int, datagram: Bool) async throws {
         guard let port = UInt16(exactly: port) else {
@@ -71,10 +101,9 @@ final class Context {
         var connection: Ocp1Connection?
         var savedError: Error?
 
-        // as a synchronous UI that's designed for debugging, we don't cache anything, we always hit
-        // the network
-        let options = Ocp1ConnectionOptions(refreshDeviceTreeOnConnection: false)
-
+        // as a synchronous UI that's designed for debugging, we don't cache anything except for
+        // role names and the hierarchy which we presume not to change
+        let options = contextFlags.connectionOptions
         for hostAddress in host.addresses {
             do {
                 var deviceAddressData = Data()
@@ -125,18 +154,88 @@ final class Context {
         try? await connection.disconnect()
     }
 
-    private(set) var currentObject: OcaRoot
-    private(set) var currentObjectPath: OcaNamePath? = [""]
-    private(set) var currentObjectCompletions: [String]? = [] // bool if container
+    @OcaConnection
+    func findObjectCached(
+        rolePath path: OcaNamePath,
+        relativeTo baseObject: OcaBlock
+    ) throws -> OcaRoot {
+        precondition(contextFlags.contains(.enableRolePathLookupCache))
 
-    func findObject(
-        with pathComponents: OcaNamePath,
+        var object: OcaRoot! = baseObject
+        for pathComponent in path {
+            guard let block = object as? OcaBlock else {
+                throw Ocp1Error.objectClassMismatch
+            }
+
+            var childObject: OcaRoot?
+
+            guard let actionObjects = try? block.actionObjects.asOptionalResult().get() else {
+                throw Ocp1Error.noInitialValue
+            }
+
+            for actionObjectIdentifier in actionObjects {
+                guard let actionObject = connection
+                    .resolve(cachedObject: actionObjectIdentifier.oNo),
+                    let role = try? actionObject.role.asOptionalResult().get()
+                else {
+                    throw Ocp1Error.noInitialValue
+                }
+                if role == pathComponent {
+                    childObject = actionObject
+                    break
+                }
+            }
+
+            guard let childObject else {
+                throw Ocp1Error.objectNotPresent
+            }
+
+            object = childObject
+        }
+
+        guard let object else { throw Ocp1Error.objectNotPresent }
+        return object
+    }
+
+    private static func findObjectFallback(
+        with rolePath: OcaNamePath,
+        relativeTo baseObject: OcaBlock
+    ) async throws -> OcaRoot {
+        var object: OcaRoot! = baseObject
+        for pathComponent in rolePath {
+            guard let block = object as? OcaBlock else {
+                throw Ocp1Error.objectClassMismatch
+            }
+
+            var childObject: OcaRoot?
+
+            for actionObject in try await block.resolveActionObjects() {
+                let role = try await actionObject.getRole()
+                if role == pathComponent {
+                    childObject = actionObject
+                    break
+                }
+            }
+
+            guard let childObject else {
+                throw Ocp1Error.objectNotPresent
+            }
+
+            object = childObject
+        }
+
+        guard let object else { throw Ocp1Error.objectNotPresent }
+        return object
+    }
+
+    private static func findObject(
+        with rolePath: OcaNamePath,
         relativeTo baseObject: OcaBlock
     ) async throws -> (OcaObjectIdentification, OcaString) {
         let flags =
             OcaObjectSearchResultFlags([.oNo, .classIdentification, .containerPath, .role])
         let searchResult = try await baseObject.find(
-            actionObjectsByPath: pathComponents,
+            actionObjectsByPath: rolePath,
             resultFlags: flags
         )
 
@@ -153,7 +252,54 @@ final class Context {
         ), role)
     }
 
-    func resolvePath<T: OcaRoot>(_ path: String) async throws -> T {
+    private func resolve(
+        rolePath path: OcaNamePath,
+        relativeTo baseObject: OcaBlock
+    ) async throws -> OcaRoot? {
+        var object: OcaRoot?
+
+        if contextFlags.contains(.enableRolePathLookupCache) {
+            if contextFlags.contains(.supportsFindActionObjectsByPath) {
+                object = sparseRolePathCache[path]
+            }
+
+            if object == nil {
+                do {
+                    object = try await findObjectCached(rolePath: path, relativeTo: baseObject)
+                } catch Ocp1Error.objectNotPresent, Ocp1Error.noInitialValue {}
+            }
+        }
+
+        if object == nil, contextFlags.contains(.supportsFindActionObjectsByPath) {
+            do {
+                let objectIdentificationAndRole = try await Context.findObject(
+                    with: path,
+                    relativeTo: baseObject
+                )
+                object = await connection.resolve(object: objectIdentificationAndRole.0)
+
+                /// sparseRolePathCache is used to cache results of FindActionObjectsByPath()
+                /// where we haven't necessarily traversed the complete object hierarchy
+                if let object {
+                    object.cacheRole(objectIdentificationAndRole.1)
+                    sparseRolePathCache[path] = object
+                }
+            } catch Ocp1Error.status(.notImplemented) {
+                contextFlags.remove(.supportsFindActionObjectsByPath)
+            }
+        }
+
+        if object == nil {
+            object = try await Context.findObjectFallback(
+                with: path,
+                relativeTo: baseObject
+            )
+        }
+
+        return object
+    }
+
+    func resolve<T: OcaRoot>(rolePath path: String) async throws -> T {
         let object: OcaRoot?
 
         if let oNo = OcaONo(oNoString: path) {
@@ -182,13 +328,7 @@ final class Context {
             if pathComponents.0.isEmpty {
                 object = baseObject
             } else {
-                let (objectIdentification, role) = try await findObject(
-                    with: pathComponents.0,
-                    relativeTo: baseObject
-                )
-
-                object = await connection.resolve(object: objectIdentification)
-                object?.cacheRole(role)
+                object = try await resolve(rolePath: pathComponents.0, relativeTo: baseObject)
             }
         }
         guard let object else {
@@ -200,9 +340,9 @@ final class Context {
         return object
     }
 
-    func changeCurrentPath(to path: String) async throws {
-        if path.isEmpty { return }
-        let object: OcaBlock = try await resolvePath(path)
+    func changeCurrentPath(to rolePath: String) async throws {
+        if rolePath.isEmpty { return }
+        let object: OcaBlock = try await resolve(rolePath: rolePath)
         try await changeCurrentPath(to: object)
     }
 
@@ -214,6 +354,9 @@ final class Context {
             currentObjectCompletions = try? await object.actionObjectRoles.map { role in
                 role.contains(" ") ? "\"\(role)\"" : role
             }
+            currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {
+                Array($0.prefix(newRolePath.count)) == newRolePath
+            }.map { pathComponentsToPathString($0) })
         } else {
             currentObjectCompletions = nil
         }

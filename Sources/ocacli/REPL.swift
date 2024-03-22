@@ -138,7 +138,7 @@ final class REPLCommandRegistry {
             } else if let value = child.value as? REPLCommandArgument<OcaFloat32> {
                 value.wrappedValue = OcaFloat32(fromString: argumentValue)
             } else if let value = child.value as? REPLCommandArgument<OcaRoot> {
-                value.wrappedValue = try await context.resolvePath(argumentValue)
+                value.wrappedValue = try await context.resolve(rolePath: argumentValue)
             } else {
                 throw Ocp1Error.status(.parameterError)
             }

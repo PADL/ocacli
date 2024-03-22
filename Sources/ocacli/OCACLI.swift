@@ -40,6 +40,7 @@ final class OCACLI: Command {
         commands.register(ClearFlag.self)
         commands.register(Connect.self)
         commands.register(ConnectionInfo.self)
+        commands.register(DeviceInfo.self)
         commands.register(Disconnect.self)
         commands.register(Dump.self)
         commands.register(Exit.self)

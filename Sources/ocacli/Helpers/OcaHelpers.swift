@@ -61,11 +61,11 @@ extension OcaONo {
     }
 }
 
-private func pathComponentsToPathString(_ path: OcaNamePath, absolute: Bool = true) -> String {
+func pathComponentsToPathString(_ path: OcaNamePath, absolute: Bool = true) -> String {
     (absolute ? "/" : "") + path.joined(separator: "/")
 }
 
-private func pathStringToPathComponents(_ path: String) -> (OcaNamePath, Bool) {
+func pathStringToPathComponents(_ path: String) -> (OcaNamePath, Bool) {
     let namePath = OcaNamePath(path.components(separatedBy: "/"))
     if namePath.count > 0, namePath.first!.isEmpty {
         if namePath.allSatisfy(\.isEmpty) {

@@ -46,6 +46,7 @@ struct SetFlag: REPLCommand {
             throw Ocp1Error.status(.parameterError)
         }
         context.contextFlags.rawValue |= flag.rawValue
+        try await context.connection.set(options: context.contextFlags.connectionOptions)
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
@@ -64,6 +65,7 @@ struct ClearFlag: REPLCommand {
             throw Ocp1Error.status(.parameterError)
         }
         context.contextFlags.rawValue &= ~(flag.rawValue)
+        try await context.connection.set(options: context.contextFlags.connectionOptions)
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
