@@ -16,21 +16,25 @@
 
 import Foundation
 
-class ResultBox<Success: Sendable, Failure: Error> {
+class Box<Success: Sendable, Failure: Error>: @unchecked
+Sendable {
     var result: Result<Success, Error>!
     let semaphore = DispatchSemaphore(value: 0)
 
-    func execute(_ operation: @escaping @Sendable () async throws -> Success) async {
-        defer { semaphore.signal() }
+    func blockingWait(
+        priority: TaskPriority? = nil,
+        operation: @escaping @Sendable () async throws -> Success
+    ) throws -> Success {
+        Task<(), Never>(priority: priority) {
+            defer { semaphore.signal() }
 
-        do {
-            result = .success(try await operation())
-        } catch {
-            result = .failure(error)
+            do {
+                result = .success(try await operation())
+            } catch {
+                result = .failure(error)
+            }
         }
-    }
 
-    func get() throws -> Success {
         semaphore.wait()
         return try result.get()
     }
@@ -45,12 +49,7 @@ extension Task where Failure == Error {
         priority: TaskPriority? = nil,
         operation: @escaping @Sendable () async throws -> Success
     ) throws -> Success {
-        let box = ResultBox<Success, Failure>()
-
-        Task<(), Never>(priority: priority) {
-            await box.execute(operation)
-        }
-
-        return try box.get()
+        let box = Box<Success, Failure>()
+        return try box.blockingWait(priority: priority, operation: operation)
     }
 }
