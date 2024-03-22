@@ -33,11 +33,14 @@ extension Context {
     }
 }
 
-extension OcaBlock {
+private protocol _OcaOwnablePrivate: OcaOwnable {
+    func getOwner() async throws -> OcaONo
+}
+
+extension _OcaOwnablePrivate {
     var ownerObject: OcaBlock {
         get async throws {
-            let owner = try await $owner._getValue(self, flags: [.returnCachedValue])
-
+            let owner = try await getOwner()
             if owner == OcaInvalidONo {
                 throw Ocp1Error.status(.parameterOutOfRange)
             }
@@ -55,6 +58,24 @@ extension OcaBlock {
     }
 }
 
+extension OcaApplicationNetwork: _OcaOwnablePrivate {
+    func getOwner() async throws -> OcaONo {
+        try await $owner._getValue(self, flags: [.returnCachedValue])
+    }
+}
+
+extension OcaAgent: _OcaOwnablePrivate {
+    func getOwner() async throws -> OcaONo {
+        try await $owner._getValue(self, flags: [.returnCachedValue])
+    }
+}
+
+extension OcaWorker: _OcaOwnablePrivate {
+    func getOwner() async throws -> OcaONo {
+        try await $owner._getValue(self, flags: [.returnCachedValue])
+    }
+}
+
 extension OcaRoot {
     func cacheRole(_ role: String) {
         $role.subject.send(.success(role))
@@ -62,6 +83,42 @@ extension OcaRoot {
 
     func getRole() async throws -> String {
         try await $role._getValue(self, flags: [.cacheValue, .returnCachedValue])
+    }
+
+    var localRolePath: OcaNamePath? {
+        get async {
+            var path = [String]()
+            var currentObject = self
+
+            repeat {
+                if currentObject.objectNumber == OcaRootBlockONo {
+                    break
+                }
+
+                guard let role = try? await currentObject.getRole() else {
+                    return nil
+                }
+
+                guard let ownableObject = currentObject as? _OcaOwnablePrivate else {
+                    return nil
+                }
+
+                let ownerONo = (try? await ownableObject.getOwner()) ?? OcaInvalidONo
+                guard ownerONo != OcaInvalidONo else {
+                    break // we are at the root
+                }
+
+                path.insert(role, at: 0)
+
+                guard let cachedObject = await connectionDelegate?.resolve(cachedObject: ownerONo)
+                else {
+                    return nil
+                }
+                currentObject = cachedObject
+            } while true
+
+            return path
+        }
     }
 }
 
