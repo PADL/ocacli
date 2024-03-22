@@ -84,9 +84,14 @@ final class OCACLI: Command {
             exit(0)
         }
 
-        try Task.synchronous {
+        let queue = DispatchQueue(label: "com.padl.ocacli.repl", qos: .utility)
+        try queue.sync {
             guard let lineReader = self.lineReader else { throw Ocp1Error.invalidHandle }
-            let context = try await Context(hostname: hostname, port: port, datagram: self.udp)
+            let context: Context
+
+            context = try Task.synchronous {
+                try await Context(hostname: hostname, port: port, datagram: self.udp)
+            }
 
             lineReader.setCompletionCallback { currentBuffer in
                 guard let completions = self.commands.getCompletions(
@@ -109,16 +114,21 @@ final class OCACLI: Command {
                         continue
                     }
 
-                    let command = try await self.commands.command(from: tokens, context: context)
-                    if await context.connection.isConnected == false && command
-                        .isUsableWhenDisconnected == false
-                    {
-                        throw Ocp1Error.notConnected
+                    try Task.synchronous {
+                        let command = try await self.commands.command(
+                            from: tokens,
+                            context: context
+                        )
+                        if await context.connection.isConnected == false && command
+                            .isUsableWhenDisconnected == false
+                        {
+                            throw Ocp1Error.notConnected
+                        }
+                        try await command.execute(with: context)
                     }
-                    try await command.execute(with: context)
                     lineReader.addHistory(commandLine)
                 } catch LineReaderError.CTRLC, LineReaderError.EOF {
-                    await context.finish()
+                    try Task.synchronous { await context.finish() }
                     done = true
                 } catch {
                     context.print(error)
