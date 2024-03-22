@@ -84,7 +84,6 @@ final class Context {
     var contextFlags: ContextFlags = [
         .enableRolePathLookupCache,
         .supportsFindActionObjectsByPath,
-        .refreshDeviceTreeOnConnection,
     ]
     var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
 
