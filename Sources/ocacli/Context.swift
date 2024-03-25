@@ -321,7 +321,7 @@ final class Context {
             object = try await connection.resolve(objectOfUnknownClass: oNo)
         } else if path == "." {
             object = currentObject
-        } else if path == "..", let currentObject = currentObject as? _OcaOwnablePrivate {
+        } else if path == "..", let currentObject = currentObject as? OcaOwnable {
             let owner = try await currentObject.getOwner(flags: cachedPropertyResolutionFlags)
             object = await connection
                 .resolve(object: OcaObjectIdentification(

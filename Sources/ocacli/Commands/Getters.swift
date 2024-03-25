@@ -67,9 +67,8 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
         property: String,
         keyPath: PartialKeyPath<OcaRoot>
     ) async throws -> (String, String?) {
-        let value = try await getValueDescription(
+        let value = try await object.getValueDescription(
             context: context,
-            object: object,
             keyPath: keyPath
         )
         return (property, value)
@@ -118,9 +117,8 @@ struct Get: REPLCommand {
         var foundProperty = false
         for property in context.currentObject.allPropertyKeyPaths.sorted(by: { $1.key > $0.key }) {
             if property.key == propertyName {
-                let value = try await getValueDescription(
+                let value = try await context.currentObject.getValueDescription(
                     context: context,
-                    object: context.currentObject,
                     keyPath: property.value
                 )
                 context.print("\(value ?? "null")")
@@ -151,9 +149,8 @@ struct Dump: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
 
     func execute(with context: Context) async throws {
         let object = object ?? context.currentObject
-        let jsonResultData = try await getObjectJsonRepresentation(
+        let jsonResultData = try await object.getJsonRepresentation(
             context: context,
-            object: object,
             options: .prettyPrinted
         )
         context.print(String(data: jsonResultData, encoding: .utf8)!)

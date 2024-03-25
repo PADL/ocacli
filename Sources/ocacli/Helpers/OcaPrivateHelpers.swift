@@ -37,105 +37,27 @@ extension Context {
     }
 }
 
-protocol _OcaOwnablePrivate: OcaOwnable {
-    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo
-}
-
-extension _OcaOwnablePrivate {
+extension OcaOwnable {
     func getOwnerObject(flags: _OcaPropertyResolutionFlags) async throws -> OcaBlock {
-        let owner = try await getOwner(flags: flags)
-        if owner == OcaInvalidONo {
-            throw Ocp1Error.status(.parameterOutOfRange)
-        }
-
-        guard let ownerObject = await connectionDelegate?
-            .resolve(object: OcaObjectIdentification(
-                oNo: owner,
-                classIdentification: OcaBlock.classIdentification
-            )) as? OcaBlock
-        else {
-            throw Ocp1Error.status(.badONo)
-        }
-        return ownerObject
+        try await _getOwnerObject(flags: flags)
     }
-}
 
-extension OcaApplicationNetwork: _OcaOwnablePrivate {
     func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
-        try await $owner._getValue(self, flags: flags)
-    }
-}
-
-extension OcaAgent: _OcaOwnablePrivate {
-    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
-        try await $owner._getValue(self, flags: flags)
-    }
-}
-
-extension OcaWorker: _OcaOwnablePrivate {
-    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
-        guard objectNumber != OcaRootBlockONo else { throw Ocp1Error.status(.invalidRequest) }
-        return try await $owner._getValue(self, flags: flags)
+        try await _getOwner(flags: flags)
     }
 }
 
 extension OcaRoot {
     func cacheRole(_ role: String) {
-        $role.subject.send(.success(role))
+        _set(role: role)
     }
 
     func getRole() async throws -> String {
-        try await $role._getValue(self, flags: [.cacheValue, .returnCachedValue])
-    }
-
-    func getLocalRolePath(flags: _OcaPropertyResolutionFlags) async throws -> OcaNamePath? {
-        if objectNumber == OcaRootBlockONo {
-            return []
-        }
-
-        var path = [String]()
-        var currentObject = self
-
-        repeat {
-            guard let role = try? await currentObject.getRole() else {
-                return nil
-            }
-
-            guard let ownableObject = currentObject as? _OcaOwnablePrivate else {
-                return nil
-            }
-
-            if ownableObject.objectNumber == OcaRootBlockONo {
-                break
-            }
-
-            let ownerONo = (try? await ownableObject.getOwner(flags: flags)) ?? OcaInvalidONo
-            guard ownerONo != OcaInvalidONo else {
-                break // we are at the root
-            }
-
-            path.insert(role, at: 0)
-
-            guard let cachedObject = await connectionDelegate?.resolve(cachedObject: ownerONo)
-            else {
-                return nil
-            }
-            currentObject = cachedObject
-        } while true
-
-        return path
+        try await _getRole()
     }
 
     func getRolePath(flags: _OcaPropertyResolutionFlags) async throws -> OcaNamePath {
-        if objectNumber == OcaRootBlockONo {
-            return []
-        } else if let localRolePath = try await getLocalRolePath(flags: flags) {
-            return localRolePath
-        } else if let self = self as? OcaOwnable {
-            return try await self.path.0
-        } else {
-            throw Ocp1Error.objectClassMismatch
-        }
+        try await _getRolePath(flags: flags)
     }
 
     func getRolePathString(flags: _OcaPropertyResolutionFlags) async throws -> String {
@@ -147,58 +69,42 @@ extension OcaRoot {
     }
 }
 
-extension Ocp1Connection {
-    func resolve<T: OcaRoot>(objectOfUnknownClass: OcaONo) async throws -> T? {
-        if let object: T = resolve(cachedObject: objectOfUnknownClass) {
-            return object
+extension OcaRoot {
+    func getValueDescription(
+        context: Context,
+        keyPath: PartialKeyPath<OcaRoot>
+    ) async throws -> String? {
+        let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
+        // special hoops to avoid caching, check context for caching environment variable
+        guard let value = try? await subject._getValue(
+            self,
+            flags: context.propertyResolutionFlags
+        ) else { return nil }
+
+        if let value = value as? REPLStringConvertible {
+            return await value.replString(context: context, object: self)
+        } else {
+            return String(describing: value)
         }
-
-        let classIdentification =
-            try await getClassIdentification(objectNumber: objectOfUnknownClass)
-        return resolve(object: OcaObjectIdentification(
-            oNo: objectOfUnknownClass,
-            classIdentification: classIdentification
-        ))
     }
-}
 
-func getValueDescription(
-    context: Context,
-    object: OcaRoot,
-    keyPath: PartialKeyPath<OcaRoot>
-) async throws -> String? {
-    let subject = object[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
-    // special hoops to avoid caching, check context for caching environment variable
-    guard let value = try? await subject._getValue(
-        object,
-        flags: context.propertyResolutionFlags
-    ) else { return nil }
-
-    if let value = value as? REPLStringConvertible {
-        return await value.replString(context: context, object: object)
-    } else {
-        return String(describing: value)
+    func setValueDescription(
+        context: Context,
+        keyPath: PartialKeyPath<OcaRoot>,
+        value: String
+    ) async throws {
+        let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
+        try await subject._set(self, description: value)
     }
-}
 
-func setValueDescription(
-    context: Context,
-    object: OcaRoot,
-    keyPath: PartialKeyPath<OcaRoot>,
-    value: String
-) async throws {
-    let subject = object[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
-    try await subject._set(object, description: value)
-}
-
-func getObjectJsonRepresentation(
-    context: Context,
-    object: OcaRoot,
-    options: JSONSerialization.WritingOptions
-) async throws -> Data {
-    let jsonResultData = try await JSONSerialization.data(
-        withJSONObject: object._getJsonValue(flags: context.propertyResolutionFlags),
-        options: options
-    )
-    return jsonResultData
+    func getJsonRepresentation(
+        context: Context,
+        options: JSONSerialization.WritingOptions
+    ) async throws -> Data {
+        let jsonResultData = try await JSONSerialization.data(
+            withJSONObject: _getJsonValue(flags: context.propertyResolutionFlags),
+            options: options
+        )
+        return jsonResultData
+    }
 }
