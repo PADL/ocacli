@@ -27,6 +27,18 @@ final class OCACLI: Command {
     var port: Int?
     @CommandOption(short: "U", long: "udp", description: "Use datagram sockets")
     var udp: Bool
+    @CommandOption(
+        short: "r",
+        long: "resolve-device-tree",
+        description: "Resolve device action objects at startup"
+    )
+    var resolveDeviceTree: Bool
+    @CommandOption(
+        short: "c",
+        long: "cache-properties",
+        description: "Cache property values and subscribe to change events"
+    )
+    var cacheProperties: Bool
     @CommandOption(long: "help", description: "Show usage description")
     var help: Bool
     @CommandFlags // Inject the flags object
@@ -90,7 +102,32 @@ final class OCACLI: Command {
             let context: Context
 
             context = try Task.synchronous {
-                try await Context(hostname: hostname, port: port, datagram: self.udp)
+                var contextFlags: ContextFlags = [
+                    .enableRolePathLookupCache,
+                    .supportsFindActionObjectsByPath,
+                ]
+                let deviceEndpointInfo: DeviceEndpointInfo
+
+                if self.resolveDeviceTree {
+                    contextFlags.insert(.refreshDeviceTreeOnConnection)
+                }
+                if self.cacheProperties {
+                    contextFlags.insert([.cacheProperties, .subscribePropertyEvents])
+                }
+
+                guard let port = UInt16(exactly: port) else {
+                    throw Ocp1Error.serviceResolutionFailed
+                }
+
+                if self.udp {
+                    deviceEndpointInfo = DeviceEndpointInfo.udp(hostname, port)
+                } else {
+                    deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname, port)
+                }
+                return try await Context(
+                    deviceEndpointInfo: deviceEndpointInfo,
+                    contextFlags: contextFlags
+                )
             }
 
             lineReader.setCompletionCallback { currentBuffer in

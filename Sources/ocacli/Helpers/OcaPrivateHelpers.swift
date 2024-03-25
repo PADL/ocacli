@@ -24,7 +24,7 @@ extension Context {
         var flags = _OcaPropertyResolutionFlags()
 
         if contextFlags.contains(.cacheProperties) {
-            flags.formUnion([.cacheValue, .returnCachedValue])
+            flags.formUnion([.cacheValue, .cacheErrors, .returnCachedValue])
         }
         if contextFlags.contains(.subscribePropertyEvents) {
             flags.formUnion([.subscribeEvents])

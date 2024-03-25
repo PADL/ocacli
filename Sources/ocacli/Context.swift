@@ -40,6 +40,79 @@ enum ContextFlagsNames: Int, CaseIterable {
     }
 }
 
+enum DeviceEndpointInfo {
+    case tcp(String, UInt16)
+    case udp(String, UInt16)
+
+    var hostname: String {
+        switch self {
+        case let .tcp(hostname, _):
+            return hostname
+        case let .udp(hostname, _):
+            return hostname
+        }
+    }
+
+    var port: UInt16 {
+        switch self {
+        case let .tcp(_, port):
+            return port
+        case let .udp(_, port):
+            return port
+        }
+    }
+
+    func getConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
+        var connection: Ocp1Connection?
+        let host = Host(name: hostname)
+        var savedError: Error?
+
+        for hostAddress in host.addresses {
+            do {
+                var deviceAddressData = Data()
+                if hostAddress.contains(":") {
+                    var deviceAddress = try sockaddr_in6(hostAddress, port: port)
+                    withUnsafeBytes(of: &deviceAddress) { bytes in
+                        deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
+                    }
+                } else {
+                    var deviceAddress = try sockaddr_in(hostAddress, port: port)
+                    withUnsafeBytes(of: &deviceAddress) { bytes in
+                        deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
+                    }
+                }
+                if case .udp = self {
+                    connection = try await Ocp1UDPConnection(
+                        deviceAddress: deviceAddressData,
+                        options: options
+                    )
+                } else {
+                    connection = try await Ocp1TCPConnection(
+                        deviceAddress: deviceAddressData,
+                        options: options
+                    )
+                }
+                if let connection {
+                    try await connection.connect()
+                    break
+                }
+            } catch {
+                savedError = error
+            }
+        }
+
+        if let connection {
+            return connection
+        }
+
+        if let savedError {
+            throw savedError
+        } else {
+            throw Ocp1Error.serviceResolutionFailed
+        }
+    }
+}
+
 struct ContextFlags: OptionSet {
     init(rawValue: UInt32) {
         self.rawValue = rawValue
@@ -81,10 +154,7 @@ struct ContextFlags: OptionSet {
 
 final class Context {
     let connection: Ocp1Connection
-    var contextFlags: ContextFlags = [
-        .enableRolePathLookupCache,
-        .supportsFindActionObjectsByPath,
-    ]
+    var contextFlags: ContextFlags
     var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
 
     // TODO: UDP support
@@ -96,58 +166,11 @@ final class Context {
     private var sparseRolePathCache: [OcaNamePath: OcaRoot] =
         [:] // cache FindObjectsByRole() results
 
-    init(hostname: String, port: Int, datagram: Bool) async throws {
-        guard let port = UInt16(exactly: port) else {
-            throw Ocp1Error.serviceResolutionFailed
-        }
-        let host = Host(name: hostname)
-        var connection: Ocp1Connection?
-        var savedError: Error?
+    init(deviceEndpointInfo: DeviceEndpointInfo, contextFlags: ContextFlags) async throws {
+        self.contextFlags = contextFlags
 
-        // as a synchronous UI that's designed for debugging, we don't cache anything except for
-        // role names and the hierarchy which we presume not to change
-        let options = contextFlags.connectionOptions
-        for hostAddress in host.addresses {
-            do {
-                var deviceAddressData = Data()
-                if hostAddress.contains(":") {
-                    var deviceAddress = try sockaddr_in6(hostAddress, port: port)
-                    withUnsafeBytes(of: &deviceAddress) { bytes in
-                        deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-                    }
-                } else {
-                    var deviceAddress = try sockaddr_in(hostAddress, port: port)
-                    withUnsafeBytes(of: &deviceAddress) { bytes in
-                        deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-                    }
-                }
-                if datagram {
-                    connection = try await Ocp1UDPConnection(
-                        deviceAddress: deviceAddressData,
-                        options: options
-                    )
-                } else {
-                    connection = try await Ocp1TCPConnection(
-                        deviceAddress: deviceAddressData,
-                        options: options
-                    )
-                }
-                if let connection {
-                    try await connection.connect()
-                    break
-                }
-            } catch {
-                savedError = error
-            }
-        }
-
-        guard let connection else {
-            guard let savedError else {
-                throw Ocp1Error.serviceResolutionFailed
-            }
-            throw savedError
-        }
-
+        let connection = try await deviceEndpointInfo
+            .getConnection(options: contextFlags.connectionOptions)
         self.connection = connection
         currentObject = await connection.rootBlock
         try await changeCurrentPath(to: connection.rootBlock)
@@ -354,11 +377,22 @@ final class Context {
         return currentObjectCompletions
     }
 
+    func refreshCurrentObjectCompletions() async {
+        if let currentObjectPath {
+            currentObjectCompletions = try? await _resolveObjectCompletions(
+                currentObject,
+                path: currentObjectPath
+            )
+        } else {
+            currentObjectCompletions = nil
+        }
+    }
+
     func changeCurrentPath(to object: OcaRoot) async throws {
         let newRolePath = try await object.rolePath
         currentObject = object
         currentObjectPath = newRolePath
-        currentObjectCompletions = try? await _resolveObjectCompletions(object, path: newRolePath)
+        await refreshCurrentObjectCompletions()
     }
 
     var currentPathString: String {
