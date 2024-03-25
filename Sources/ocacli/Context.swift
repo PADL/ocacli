@@ -40,6 +40,45 @@ enum ContextFlagsNames: Int, CaseIterable {
     }
 }
 
+struct ContextFlags: OptionSet {
+    init(rawValue: UInt32) {
+        self.rawValue = rawValue
+    }
+
+    init(_ contextFlagsNames: ContextFlagsNames) {
+        self.init(rawValue: 1 << contextFlagsNames.rawValue)
+    }
+
+    var rawValue: UInt32
+
+    typealias RawValue = UInt32
+
+    static let cacheProperties = ContextFlags(ContextFlagsNames.cacheProperties)
+    static let subscribePropertyEvents = ContextFlags(ContextFlagsNames.subscribePropertyEvents)
+    static let supportsFindActionObjectsByPath = ContextFlags(
+        ContextFlagsNames
+            .supportsFindActionObjectsByPath
+    )
+    static let enableRolePathLookupCache = ContextFlags(ContextFlagsNames.enableRolePathLookupCache)
+    static let refreshDeviceTreeOnConnection = ContextFlags(
+        ContextFlagsNames
+            .refreshDeviceTreeOnConnection
+    )
+    static let automaticReconnect = ContextFlags(ContextFlagsNames.automaticReconnect)
+
+    init?(string: String) {
+        guard let flagName = ContextFlagsNames(string: string) else { return nil }
+        self.init(flagName)
+    }
+
+    var connectionOptions: Ocp1ConnectionOptions {
+        Ocp1ConnectionOptions(
+            automaticReconnect: contains(.automaticReconnect),
+            refreshDeviceTreeOnConnection: contains(.refreshDeviceTreeOnConnection)
+        )
+    }
+}
+
 enum DeviceEndpointInfo {
     case tcp(String, UInt16)
     case udp(String, UInt16)
@@ -110,45 +149,6 @@ enum DeviceEndpointInfo {
         } else {
             throw Ocp1Error.serviceResolutionFailed
         }
-    }
-}
-
-struct ContextFlags: OptionSet {
-    init(rawValue: UInt32) {
-        self.rawValue = rawValue
-    }
-
-    init(_ contextFlagsNames: ContextFlagsNames) {
-        self.init(rawValue: 1 << contextFlagsNames.rawValue)
-    }
-
-    var rawValue: UInt32
-
-    typealias RawValue = UInt32
-
-    static let cacheProperties = ContextFlags(ContextFlagsNames.cacheProperties)
-    static let subscribePropertyEvents = ContextFlags(ContextFlagsNames.subscribePropertyEvents)
-    static let supportsFindActionObjectsByPath = ContextFlags(
-        ContextFlagsNames
-            .supportsFindActionObjectsByPath
-    )
-    static let enableRolePathLookupCache = ContextFlags(ContextFlagsNames.enableRolePathLookupCache)
-    static let refreshDeviceTreeOnConnection = ContextFlags(
-        ContextFlagsNames
-            .refreshDeviceTreeOnConnection
-    )
-    static let automaticReconnect = ContextFlags(ContextFlagsNames.automaticReconnect)
-
-    init?(string: String) {
-        guard let flagName = ContextFlagsNames(string: string) else { return nil }
-        self.init(flagName)
-    }
-
-    var connectionOptions: Ocp1ConnectionOptions {
-        Ocp1ConnectionOptions(
-            automaticReconnect: contains(.automaticReconnect),
-            refreshDeviceTreeOnConnection: contains(.refreshDeviceTreeOnConnection)
-        )
     }
 }
 
@@ -322,7 +322,7 @@ final class Context {
         } else if path == "." {
             object = currentObject
         } else if path == "..", let currentObject = currentObject as? _OcaOwnablePrivate {
-            let owner = try await currentObject.getOwner()
+            let owner = try await currentObject.getOwner(flags: cachedPropertyResolutionFlags)
             object = await connection
                 .resolve(object: OcaObjectIdentification(
                     oNo: owner,
@@ -389,7 +389,7 @@ final class Context {
     }
 
     func changeCurrentPath(to object: OcaRoot) async throws {
-        let newRolePath = try await object.rolePath
+        let newRolePath = try await object.getRolePath(flags: cachedPropertyResolutionFlags)
         currentObject = object
         currentObjectPath = newRolePath
         await refreshCurrentObjectCompletions()
@@ -420,8 +420,13 @@ final class Context {
 
         Task {
             let emitter = await connection.resolve(cachedObject: event.emitterONo)
-            let emitterPath = emitter != nil ? try await emitter!.rolePath.pathString : event
-                .emitterONo.oNoString
+            let emitterPath: String
+            if let emitter {
+                emitterPath = try await emitter
+                    .getRolePathString(flags: cachedPropertyResolutionFlags)
+            } else {
+                emitterPath = event.emitterONo.oNoString
+            }
             self
                 .print(
                     "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"

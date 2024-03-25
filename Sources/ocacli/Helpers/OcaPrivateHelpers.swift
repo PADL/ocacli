@@ -24,55 +24,58 @@ extension Context {
         var flags = _OcaPropertyResolutionFlags()
 
         if contextFlags.contains(.cacheProperties) {
-            flags.formUnion([.cacheValue, .cacheErrors, .returnCachedValue])
+            flags.formUnion([.cacheValue, .throwCachedError, .cacheErrors, .returnCachedValue])
         }
         if contextFlags.contains(.subscribePropertyEvents) {
             flags.formUnion([.subscribeEvents])
         }
         return flags
     }
+
+    var cachedPropertyResolutionFlags: _OcaPropertyResolutionFlags {
+        propertyResolutionFlags.union([.returnCachedValue])
+    }
 }
 
 protocol _OcaOwnablePrivate: OcaOwnable {
-    func getOwner() async throws -> OcaONo
+    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo
 }
 
 extension _OcaOwnablePrivate {
-    var ownerObject: OcaBlock {
-        get async throws {
-            let owner = try await getOwner()
-            if owner == OcaInvalidONo {
-                throw Ocp1Error.status(.parameterOutOfRange)
-            }
-
-            guard let ownerObject = await connectionDelegate?
-                .resolve(object: OcaObjectIdentification(
-                    oNo: owner,
-                    classIdentification: OcaBlock.classIdentification
-                )) as? OcaBlock
-            else {
-                throw Ocp1Error.status(.badONo)
-            }
-            return ownerObject
+    func getOwnerObject(flags: _OcaPropertyResolutionFlags) async throws -> OcaBlock {
+        let owner = try await getOwner(flags: flags)
+        if owner == OcaInvalidONo {
+            throw Ocp1Error.status(.parameterOutOfRange)
         }
+
+        guard let ownerObject = await connectionDelegate?
+            .resolve(object: OcaObjectIdentification(
+                oNo: owner,
+                classIdentification: OcaBlock.classIdentification
+            )) as? OcaBlock
+        else {
+            throw Ocp1Error.status(.badONo)
+        }
+        return ownerObject
     }
 }
 
 extension OcaApplicationNetwork: _OcaOwnablePrivate {
-    func getOwner() async throws -> OcaONo {
-        try await $owner._getValue(self, flags: [.returnCachedValue])
+    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
+        try await $owner._getValue(self, flags: flags)
     }
 }
 
 extension OcaAgent: _OcaOwnablePrivate {
-    func getOwner() async throws -> OcaONo {
-        try await $owner._getValue(self, flags: [.returnCachedValue])
+    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
+        try await $owner._getValue(self, flags: flags)
     }
 }
 
 extension OcaWorker: _OcaOwnablePrivate {
-    func getOwner() async throws -> OcaONo {
-        try await $owner._getValue(self, flags: [.returnCachedValue])
+    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
+        guard objectNumber != OcaRootBlockONo else { throw Ocp1Error.status(.invalidRequest) }
+        return try await $owner._getValue(self, flags: flags)
     }
 }
 
@@ -85,39 +88,61 @@ extension OcaRoot {
         try await $role._getValue(self, flags: [.cacheValue, .returnCachedValue])
     }
 
-    var localRolePath: OcaNamePath? {
-        get async {
-            var path = [String]()
-            var currentObject = self
+    func getLocalRolePath(flags: _OcaPropertyResolutionFlags) async throws -> OcaNamePath? {
+        if objectNumber == OcaRootBlockONo {
+            return []
+        }
 
-            repeat {
-                if currentObject.objectNumber == OcaRootBlockONo {
-                    break
-                }
+        var path = [String]()
+        var currentObject = self
 
-                guard let role = try? await currentObject.getRole() else {
-                    return nil
-                }
+        repeat {
+            guard let role = try? await currentObject.getRole() else {
+                return nil
+            }
 
-                guard let ownableObject = currentObject as? _OcaOwnablePrivate else {
-                    return nil
-                }
+            guard let ownableObject = currentObject as? _OcaOwnablePrivate else {
+                return nil
+            }
 
-                let ownerONo = (try? await ownableObject.getOwner()) ?? OcaInvalidONo
-                guard ownerONo != OcaInvalidONo else {
-                    break // we are at the root
-                }
+            if ownableObject.objectNumber == OcaRootBlockONo {
+                break
+            }
 
-                path.insert(role, at: 0)
+            let ownerONo = (try? await ownableObject.getOwner(flags: flags)) ?? OcaInvalidONo
+            guard ownerONo != OcaInvalidONo else {
+                break // we are at the root
+            }
 
-                guard let cachedObject = await connectionDelegate?.resolve(cachedObject: ownerONo)
-                else {
-                    return nil
-                }
-                currentObject = cachedObject
-            } while true
+            path.insert(role, at: 0)
 
-            return path
+            guard let cachedObject = await connectionDelegate?.resolve(cachedObject: ownerONo)
+            else {
+                return nil
+            }
+            currentObject = cachedObject
+        } while true
+
+        return path
+    }
+
+    func getRolePath(flags: _OcaPropertyResolutionFlags) async throws -> OcaNamePath {
+        if objectNumber == OcaRootBlockONo {
+            return []
+        } else if let localRolePath = try await getLocalRolePath(flags: flags) {
+            return localRolePath
+        } else if let self = self as? OcaOwnable {
+            return try await self.path.0
+        } else {
+            throw Ocp1Error.objectClassMismatch
+        }
+    }
+
+    func getRolePathString(flags: _OcaPropertyResolutionFlags) async throws -> String {
+        if let rolePath = try? await getRolePath(flags: flags) {
+            return rolePath.pathString
+        } else {
+            return objectNumber.oNoString
         }
     }
 }

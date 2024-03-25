@@ -30,7 +30,9 @@ extension Array: REPLStringConvertible where Element: REPLStringConvertible {
 
 extension OcaRoot: REPLStringConvertible {
     func replString(context: Context, object: OcaRoot) async -> String {
-        if let pathString = try? await rolePath.pathString {
+        if let pathString = try? await getRolePath(flags: context.cachedPropertyResolutionFlags)
+            .pathString
+        {
             return pathString
         } else if object.objectNumber == OcaRootBlockONo, let role = try? await getRole() {
             return [role].pathString

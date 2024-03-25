@@ -41,33 +41,6 @@ extension OcaBlock {
     }
 }
 
-@OcaConnection
-extension OcaRoot {
-    var rolePath: OcaNamePath {
-        get async throws {
-            if objectNumber == OcaRootBlockONo {
-                return []
-            } else if let localRolePath = await localRolePath {
-                return localRolePath
-            } else if let self = self as? OcaOwnable {
-                return try await self.path.0
-            } else {
-                throw Ocp1Error.objectClassMismatch
-            }
-        }
-    }
-
-    var rolePathString: String {
-        get async {
-            if let rolePath = try? await rolePath {
-                return rolePath.pathString
-            } else {
-                return objectNumber.oNoString
-            }
-        }
-    }
-}
-
 extension OcaONo {
     var oNoString: String {
         "<\(self)>"

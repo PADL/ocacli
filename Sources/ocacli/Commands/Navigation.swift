@@ -128,7 +128,8 @@ struct Resolve: REPLCommand {
         guard let object = try await context.connection.resolve(objectOfUnknownClass: oNo) else {
             throw Ocp1Error.status(.badONo)
         }
-        await context.print(object.rolePathString)
+        try await context
+            .print(object.getRolePathString(flags: context.cachedPropertyResolutionFlags))
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
