@@ -61,9 +61,13 @@ extension OcaONo {
     }
 }
 
-func pathComponentsToPathString(_ path: OcaNamePath, absolute: Bool = true) -> String {
+func pathComponentsToPathString(
+    _ path: OcaNamePath,
+    absolute: Bool = true,
+    escaping: Bool = false
+) -> String {
     let pathString = (absolute ? "/" : "") + path.joined(separator: "/")
-    if pathString.contains(" ") {
+    if escaping && pathString.contains(" ") {
         return "\"\(pathString)\""
     } else {
         return pathString

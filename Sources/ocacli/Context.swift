@@ -369,11 +369,11 @@ final class Context {
         guard let object = object as? OcaBlock else { return nil }
         var currentObjectCompletions: [String]?
         currentObjectCompletions = try? await object.cachedActionObjectRoles.map { _, role in
-            pathComponentsToPathString([role], absolute: false)
+            pathComponentsToPathString([role], absolute: false, escaping: true)
         }
         currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {
             $0.count > path.count && Array($0.prefix(path.count)) == path
-        }.map { pathComponentsToPathString([$0[path.count]], absolute: false) })
+        }.map { pathComponentsToPathString([$0[path.count]], absolute: false, escaping: true) })
         return currentObjectCompletions
     }
 
