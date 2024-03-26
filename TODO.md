@@ -7,7 +7,4 @@
 - add back cyclic ref check in getRecursiveFallback()
 - ingest commands from command line
 - starting block command
-- lock/unlock
-- not connecting properly
 - fix reconnect bug
-- pushd/popd
