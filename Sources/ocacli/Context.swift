@@ -15,6 +15,7 @@
 //
 
 import Foundation
+import Logging
 import SwiftOCA
 
 enum ContextFlagsNames: Int, CaseIterable {
@@ -152,6 +153,7 @@ enum DeviceEndpointInfo {
 
 final class Context {
     let connection: Ocp1Connection
+    let logger: Logger
     var contextFlags: ContextFlags
     var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
 
@@ -164,8 +166,13 @@ final class Context {
     private var sparseRolePathCache: [OcaNamePath: OcaRoot] =
         [:] // cache FindObjectsByRole() results
 
-    init(deviceEndpointInfo: DeviceEndpointInfo, contextFlags: ContextFlags) async throws {
+    init(
+        deviceEndpointInfo: DeviceEndpointInfo,
+        contextFlags: ContextFlags,
+        logger: Logger
+    ) async throws {
         self.contextFlags = contextFlags
+        self.logger = logger
         connection = try await deviceEndpointInfo
             .getConnection(options: self.contextFlags.connectionOptions)
         currentObject = await connection.rootBlock
@@ -421,10 +428,10 @@ final class Context {
             } else {
                 emitterPath = event.emitterONo.oNoString
             }
-            self
-                .print(
-                    "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
-                )
+            logger.info(
+                "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
+            )
+            fflush(stdout)
         }
     }
 }

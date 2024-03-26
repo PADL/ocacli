@@ -1,7 +1,7 @@
 - support ../.., ../., etc paths
 - test autoreconnect
 - Tree / graph display
-- UDP, domain socket
+- domain socket
 - Statistics
 - Sensor view
 - add back cyclic ref check in getRecursiveFallback()
@@ -9,3 +9,5 @@
 - starting block command
 - lock/unlock
 - not connecting properly
+- fix reconnect bug
+- pushd/popd

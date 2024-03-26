@@ -34,11 +34,13 @@ final class OCACLI: Command {
     )
     var resolveDeviceTree: Bool
     @CommandOption(
-        short: "c",
-        long: "cache-properties",
-        description: "Cache property values and subscribe to change events"
+        short: "s",
+        long: "subscribe-properties",
+        description: "Subscribe to property change events"
     )
     var cacheProperties: Bool
+    @CommandArgument(short: "l", long: "log-level", description: "Log level")
+    var logLevel: String?
     @CommandOption(long: "help", description: "Show usage description")
     var help: Bool
     @CommandFlags // Inject the flags object
@@ -70,6 +72,20 @@ final class OCACLI: Command {
         commands.register(Unsubscribe.self)
     }
 
+    func usage() -> Never {
+        print(
+            flags.usageDescription(
+                usageName: TextStyle.bold.properties.apply(to: "usage:"),
+                synopsis: "[<option> ...] [---] [<program> <arg> ...]",
+                usageStyle: TextProperties.none,
+                optionsName: TextStyle.bold.properties.apply(to: "options:"),
+                flagStyle: TextStyle.italic.properties
+            ),
+            terminator: ""
+        )
+        exit(1)
+    }
+
     func readCommand(_ ln: LineReader, withPrompt prompt: String) throws -> String {
         let commandLine = try ln.readLine(
             prompt: prompt,
@@ -82,27 +98,27 @@ final class OCACLI: Command {
         return commandLine
     }
 
-    func run() throws {
+    private func start() throws {
+        guard let lineReader = lineReader else { throw Ocp1Error.invalidHandle }
+        let context: Context
+
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+
         guard let hostname, let port, !help else {
-            print(
-                flags.usageDescription(
-                    usageName: TextStyle.bold.properties.apply(to: "usage:"),
-                    synopsis: "[<option> ...] [---] [<program> <arg> ...]",
-                    usageStyle: TextProperties.none,
-                    optionsName: TextStyle.bold.properties.apply(to: "options:"),
-                    flagStyle: TextStyle.italic.properties
-                ),
-                terminator: ""
-            )
-            exit(0)
+            usage()
         }
 
-        let queue = DispatchQueue(label: "com.padl.ocacli.repl", qos: .utility)
-        try queue.sync {
-            guard let lineReader = self.lineReader else { throw Ocp1Error.invalidHandle }
-            let context: Context
-
+        do {
             context = try Task.synchronous {
+                var logger = Logger(label: "com.padl.ocacli")
+
+                if let logLevel = self.logLevel {
+                    guard let logLevel = Logger.Level(rawValue: logLevel) else {
+                        self.usage()
+                    }
+                    logger.logLevel = logLevel
+                }
+
                 var contextFlags: ContextFlags = [
                     .enableRolePathLookupCache,
                     .supportsFindActionObjectsByPath,
@@ -127,51 +143,60 @@ final class OCACLI: Command {
                 }
                 return try await Context(
                     deviceEndpointInfo: deviceEndpointInfo,
-                    contextFlags: contextFlags
+                    contextFlags: contextFlags,
+                    logger: logger
                 )
             }
+        } catch {
+            print(error)
+            exit(2)
+        }
 
-            lineReader.setCompletionCallback { currentBuffer in
-                guard let completions = self.commands.getCompletions(
-                    from: currentBuffer,
-                    context: context
-                ) else { return [] }
-                return completions.filter { $0.hasPrefix(currentBuffer) }
-            }
+        lineReader.setCompletionCallback { currentBuffer in
+            guard let completions = self.commands.getCompletions(
+                from: currentBuffer,
+                context: context
+            ) else { return [] }
+            return completions.filter { $0.hasPrefix(currentBuffer) }
+        }
 
-            var done = false
+        var done = false
 
-            while !done {
-                do {
-                    let commandLine = try self.readCommand(
-                        lineReader,
-                        withPrompt: "\(context.currentPathString)> "
-                    )
-                    let tokens = self.commands.tokenizeCommand(commandLine)
-                    if tokens.count == 0 {
-                        continue
-                    }
-
-                    try Task.synchronous {
-                        let command = try await self.commands.command(
-                            from: tokens,
-                            context: context
-                        )
-                        if await context.connection.isConnected == false && command
-                            .isUsableWhenDisconnected == false
-                        {
-                            throw Ocp1Error.notConnected
-                        }
-                        try await command.execute(with: context)
-                    }
-                    lineReader.addHistory(commandLine)
-                } catch LineReaderError.CTRLC, LineReaderError.EOF {
-                    try Task.synchronous { await context.finish() }
-                    done = true
-                } catch {
-                    context.print(error)
+        while !done {
+            do {
+                let commandLine = try readCommand(
+                    lineReader,
+                    withPrompt: "\(context.currentPathString)> "
+                )
+                let tokens = commands.tokenizeCommand(commandLine)
+                if tokens.count == 0 {
+                    continue
                 }
+
+                try Task.synchronous {
+                    let command = try await self.commands.command(
+                        from: tokens,
+                        context: context
+                    )
+                    if await context.connection.isConnected == false && command
+                        .isUsableWhenDisconnected == false
+                    {
+                        throw Ocp1Error.notConnected
+                    }
+                    try await command.execute(with: context)
+                }
+                lineReader.addHistory(commandLine)
+            } catch LineReaderError.CTRLC, LineReaderError.EOF {
+                try Task.synchronous { await context.finish() }
+                done = true
+            } catch {
+                context.print(error)
             }
         }
+    }
+
+    func run() throws {
+        let queue = DispatchQueue(label: "com.padl.ocacli.repl", qos: .utility)
+        try queue.sync { try start() }
     }
 }
