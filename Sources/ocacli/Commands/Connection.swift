@@ -57,3 +57,15 @@ struct DeviceInfo: REPLCommand {
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+struct ClearCache: REPLCommand {
+    static let name = ["clear-cache"]
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        await context.connection.clearObjectCache()
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

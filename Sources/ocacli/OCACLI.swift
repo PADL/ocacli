@@ -49,6 +49,7 @@ final class OCACLI: Command {
 
     init() {
         commands.register(ChangePath.self)
+        commands.register(ClearCache.self)
         commands.register(ClearFlag.self)
         commands.register(Connect.self)
         commands.register(ConnectionInfo.self)

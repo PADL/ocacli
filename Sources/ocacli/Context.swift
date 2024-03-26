@@ -168,10 +168,8 @@ final class Context {
 
     init(deviceEndpointInfo: DeviceEndpointInfo, contextFlags: ContextFlags) async throws {
         self.contextFlags = contextFlags
-
-        let connection = try await deviceEndpointInfo
-            .getConnection(options: contextFlags.connectionOptions)
-        self.connection = connection
+        connection = try await deviceEndpointInfo
+            .getConnection(options: self.contextFlags.connectionOptions)
         currentObject = await connection.rootBlock
         try await changeCurrentPath(to: connection.rootBlock)
     }
@@ -371,8 +369,6 @@ final class Context {
             currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {
                 Array($0.prefix(path.count)) == path
             }.map { pathComponentsToPathString($0) })
-        } else {
-            currentObjectCompletions = nil
         }
         return currentObjectCompletions
     }
