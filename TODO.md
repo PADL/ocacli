@@ -4,6 +4,4 @@
 - UDP, domain socket
 - Statistics
 - Sensor view
-- subscribe based on block config
-- also, onComplete
 - add back cyclic ref check in getRecursiveFallback()
