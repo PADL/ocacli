@@ -372,8 +372,8 @@ final class Context {
             pathComponentsToPathString([role], absolute: false)
         }
         currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {
-            Array($0.prefix(path.count)) == path
-        }.map { pathComponentsToPathString($0) })
+            $0.count > path.count && Array($0.prefix(path.count)) == path
+        }.map { pathComponentsToPathString([$0[path.count]], absolute: false) })
         return currentObjectCompletions
     }
 
