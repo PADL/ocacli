@@ -140,11 +140,9 @@ enum DeviceEndpointInfo {
             }
         }
 
-        if let connection {
+        if let connection, await connection.isConnected {
             return connection
-        }
-
-        if let savedError {
+        } else if let savedError {
             throw savedError
         } else {
             throw Ocp1Error.serviceResolutionFailed
