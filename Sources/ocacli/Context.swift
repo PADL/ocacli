@@ -389,6 +389,20 @@ final class Context {
         }
     }
 
+    private var pathStack = [OcaRoot]()
+
+    func pushPath(_ object: OcaRoot) async throws {
+        pathStack.append(currentObject)
+        try await changeCurrentPath(to: object)
+    }
+
+    func popPath() async throws {
+        guard pathStack.count > 0 else {
+            throw Ocp1Error.noInitialValue
+        }
+        try await changeCurrentPath(to: pathStack.popLast()!)
+    }
+
     func changeCurrentPath(to object: OcaRoot) async throws {
         let newRolePath = try await object.getRolePath(flags: cachedPropertyResolutionFlags)
         currentObject = object

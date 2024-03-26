@@ -79,6 +79,29 @@ struct ChangePath: REPLCommand, REPLCurrentBlockCompletable {
     }
 }
 
+struct PushPath: REPLCommand, REPLCurrentBlockCompletable {
+    static let name = ["pushd"]
+
+    @REPLCommandArgument
+    var object: OcaRoot!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        try await context.pushPath(object)
+    }
+}
+
+struct PopPath: REPLCommand, REPLCurrentBlockCompletable {
+    static let name = ["popd"]
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        try await context.popPath()
+    }
+}
+
 struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["list", "ls"]
 
