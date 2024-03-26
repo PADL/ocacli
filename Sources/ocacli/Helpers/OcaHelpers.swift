@@ -62,7 +62,12 @@ extension OcaONo {
 }
 
 func pathComponentsToPathString(_ path: OcaNamePath, absolute: Bool = true) -> String {
-    (absolute ? "/" : "") + path.joined(separator: "/")
+    let pathString = (absolute ? "/" : "") + path.joined(separator: "/")
+    if pathString.contains(" ") {
+        return "\"\(pathString)\""
+    } else {
+        return pathString
+    }
 }
 
 func pathStringToPathComponents(_ path: String) -> (OcaNamePath, Bool) {
