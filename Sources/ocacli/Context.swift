@@ -444,7 +444,6 @@ final class Context {
             logger.info(
                 "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
             )
-            fflush(stdout)
         }
     }
 }
