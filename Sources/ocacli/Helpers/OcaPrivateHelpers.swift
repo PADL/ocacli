@@ -60,9 +60,22 @@ extension OcaRoot {
         try await _getRolePath(flags: flags)
     }
 
+    private func isOrphan(flags: _OcaPropertyResolutionFlags) async throws -> Bool {
+        if objectNumber == OcaRootBlockONo {
+            return false
+        } else
+        if let object = self as? OcaOwnable {
+            return (try? await object._getOwner(flags: flags)) ?? OcaInvalidONo == OcaInvalidONo
+        } else {
+            return true
+        }
+    }
+
     func getRolePathString(flags: _OcaPropertyResolutionFlags) async throws -> String {
-        if let rolePath = try? await getRolePath(flags: flags) {
-            return rolePath.pathString
+        if let rolePathString = try? await getRolePath(flags: flags).pathString {
+            return rolePathString
+        } else if (try? await isOrphan(flags: flags)) ?? false {
+            return try await getRole()
         } else {
             return objectNumber.oNoString
         }
