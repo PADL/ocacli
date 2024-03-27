@@ -23,6 +23,8 @@ import SwiftOCA
 final class OCACLI: Command {
     @CommandArgument(short: "h", long: "hostname", description: "Device host name")
     var hostname: String?
+    @CommandArguments(short: "c", long: "command", description: "Commands to execute")
+    var commandsToExecute: [String]
     @CommandArgument(short: "p", long: "port", description: "Device port")
     var port: Int?
     @CommandOption(short: "U", long: "udp", description: "Use datagram sockets")
@@ -168,34 +170,49 @@ final class OCACLI: Command {
 
         while !done {
             do {
-                let commandLine = try readCommand(
-                    lineReader,
-                    withPrompt: "\(context.currentPathString)> "
-                )
-                let tokens = commands.tokenizeCommand(commandLine)
-                if tokens.count == 0 {
-                    continue
-                }
-
-                try Task.synchronous {
-                    let command = try await self.commands.command(
-                        from: tokens,
-                        context: context
-                    )
-                    if await context.connection.isConnected == false && command
-                        .isUsableWhenDisconnected == false
-                    {
-                        throw Ocp1Error.notConnected
+                if !commandsToExecute.isEmpty {
+                    try Task.synchronous { [self] in
+                        for commandToExecute in commandsToExecute {
+                            let tokens = commands.tokenizeCommand(commandToExecute)
+                            let command = try await self.commands.command(
+                                from: tokens,
+                                context: context
+                            )
+                            try await command.execute(with: context)
+                        }
+                        await context.finish()
                     }
-                    try await command.execute(with: context)
+                    done = true
+                } else {
+                    let commandLine = try readCommand(
+                        lineReader,
+                        withPrompt: "\(context.currentPathString)> "
+                    )
+                    let tokens = commands.tokenizeCommand(commandLine)
+                    if tokens.count == 0 {
+                        continue
+                    }
+
+                    try Task.synchronous {
+                        let command = try await self.commands.command(
+                            from: tokens,
+                            context: context
+                        )
+                        if await context.connection.isConnected == false && command
+                            .isUsableWhenDisconnected == false
+                        {
+                            throw Ocp1Error.notConnected
+                        }
+                        try await command.execute(with: context)
+                    }
+                    lineReader.addHistory(commandLine)
                 }
-                lineReader.addHistory(commandLine)
             } catch LineReaderError.CTRLC, LineReaderError.EOF {
-                try Task.synchronous { await context.finish() }
                 done = true
             } catch {
                 context.print(error)
             }
+            try Task.synchronous { await context.finish() }
         }
     }
 

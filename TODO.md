@@ -4,6 +4,5 @@
 - domain socket
 - fix monitor view ctrl-C
 - add back cyclic ref check in getRecursiveFallback()
-- ingest commands from command line
 - starting block command
 - fix reconnect bug
