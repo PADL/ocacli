@@ -34,7 +34,7 @@ struct Flags: REPLCommand {
 }
 
 struct SetFlag: REPLCommand {
-    static let name = ["set-flag", "sf"]
+    static let name = ["set-flag"]
 
     @REPLCommandArgument
     var flagName: String!
@@ -53,7 +53,7 @@ struct SetFlag: REPLCommand {
 }
 
 struct ClearFlag: REPLCommand {
-    static let name = ["clear-flag", "cf"]
+    static let name = ["clear-flag"]
 
     @REPLCommandArgument
     var flagName: String!
