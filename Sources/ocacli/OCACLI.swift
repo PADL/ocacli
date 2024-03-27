@@ -180,7 +180,6 @@ final class OCACLI: Command {
                             )
                             try await command.execute(with: context)
                         }
-                        await context.finish()
                     }
                     done = true
                 } else {
@@ -211,6 +210,7 @@ final class OCACLI: Command {
                 done = true
             } catch {
                 context.print(error)
+                if !commandsToExecute.isEmpty { break }
             }
             try Task.synchronous { await context.finish() }
         }
