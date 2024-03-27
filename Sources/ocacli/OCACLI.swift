@@ -212,8 +212,8 @@ final class OCACLI: Command {
                 context.print(error)
                 if !commandsToExecute.isEmpty { break }
             }
-            try Task.synchronous { await context.finish() }
         }
+        try Task.synchronous { await context.finish() }
     }
 
     func run() throws {
