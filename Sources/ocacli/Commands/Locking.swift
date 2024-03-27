@@ -44,7 +44,7 @@ struct Unlock: REPLCommand, REPLCurrentBlockCompletable {
 }
 
 struct LockNoWrite: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["lock-readonly"]
+    static let name = ["lock-readonly", "lock"]
 
     @REPLCommandArgument
     var object: OcaRoot!
