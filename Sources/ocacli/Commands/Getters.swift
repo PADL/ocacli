@@ -111,7 +111,7 @@ struct Get: REPLCommand {
 
     func execute(with context: Context) async throws {
         var foundProperty = false
-        for property in context.currentObject.allPropertyKeyPaths.sorted(by: { $1.key > $0.key }) {
+        for property in context.currentObject.allPropertyKeyPaths {
             if property.key == propertyName {
                 let value = try await context.currentObject.getValueDescription(
                     context: context,
@@ -150,5 +150,16 @@ struct Dump: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
             options: .prettyPrinted
         )
         context.print(String(data: jsonResultData, encoding: .utf8)!)
+    }
+}
+
+func replString(for value: Any, context: Context, object: OcaRoot) async -> String {
+    if let value = value as? REPLStringConvertible {
+        return await value.replString(
+            context: context,
+            object: context.currentObject
+        )
+    } else {
+        return String(describing: value)
     }
 }

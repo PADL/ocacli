@@ -338,6 +338,7 @@ final class Context {
                 pathComponents.1 ? await connection
                     .rootBlock : currentObject
             ) as? OcaBlock else {
+                // FIXME: confusing when cd'ing on leaf objects
                 throw Ocp1Error.objectClassMismatch
             }
 

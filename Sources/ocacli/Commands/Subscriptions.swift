@@ -57,3 +57,47 @@ struct Unsubscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
         try await context.connection.removeSubscription(cancellable)
     }
 }
+
+struct Monitor: REPLCommand {
+    static let name = ["monitor"]
+
+    @REPLCommandArgument
+    var propertyName: String!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        var keyPath: PartialKeyPath<OcaRoot>!
+
+        for property in context.currentObject.allPropertyKeyPaths {
+            guard property.key == propertyName else { continue }
+            keyPath = property.value
+            break
+        }
+
+        guard let keyPath else {
+            throw Ocp1Error.status(.parameterError)
+        }
+
+        let subject = context
+            .currentObject[keyPath: keyPath] as! any OcaPropertyRepresentable
+
+        await subject.subscribe(context.currentObject)
+
+        for try await result in subject.async {
+            switch result {
+            case let .success(value):
+                let string = await "\r" +
+                    replString(for: value, context: context, object: context.currentObject)
+                fputs(string, stdout)
+                fflush(stdout)
+            case let .failure(error):
+                throw error
+            }
+        }
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
+        context.currentObject.allPropertyKeyPaths.map(\.key)
+    }
+}

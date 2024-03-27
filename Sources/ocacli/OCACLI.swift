@@ -62,6 +62,7 @@ final class OCACLI: Command {
         commands.register(Flags.self)
         commands.register(Get.self)
         commands.register(List.self)
+        commands.register(Monitor.self)
         commands.register(PrintWorkingPath.self)
         commands.register(PushPath.self)
         commands.register(PopPath.self)

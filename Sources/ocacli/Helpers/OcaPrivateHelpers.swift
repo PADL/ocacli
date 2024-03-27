@@ -94,11 +94,7 @@ extension OcaRoot {
             flags: context.propertyResolutionFlags
         ) else { return nil }
 
-        if let value = value as? REPLStringConvertible {
-            return await value.replString(context: context, object: self)
-        } else {
-            return String(describing: value)
-        }
+        return await ocacli.replString(for: value, context: context, object: self)
     }
 
     func setValueDescription(

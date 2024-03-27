@@ -30,7 +30,7 @@ struct Set: REPLCommand {
 
     func execute(with context: Context) async throws {
         var foundProperty: (String, PartialKeyPath<OcaRoot>)?
-        for property in context.currentObject.allPropertyKeyPaths.sorted(by: { $1.key > $0.key }) {
+        for property in context.currentObject.allPropertyKeyPaths {
             if property.key == propertyName {
                 foundProperty = (property.key, property.value)
                 break

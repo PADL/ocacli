@@ -2,7 +2,7 @@
 - test autoreconnect
 - Tree / graph display
 - domain socket
-- Sensor view
+- fix monitor view ctrl-C
 - add back cyclic ref check in getRecursiveFallback()
 - ingest commands from command line
 - starting block command
