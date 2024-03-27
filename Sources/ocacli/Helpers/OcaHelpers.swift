@@ -74,19 +74,6 @@ func pathComponentsToPathString(
     }
 }
 
-func pathStringToPathComponents(_ path: String) -> (OcaNamePath, Bool) {
-    let namePath = OcaNamePath(path.components(separatedBy: "/"))
-    if namePath.count > 0, namePath.first!.isEmpty {
-        if namePath.allSatisfy(\.isEmpty) {
-            return ([], true)
-        } else {
-            return (Array(namePath[1...]), true)
-        }
-    } else {
-        return (namePath, false)
-    }
-}
-
 extension Array where Element == String {
     var pathString: String {
         pathComponentsToPathString(self)
@@ -95,6 +82,15 @@ extension Array where Element == String {
 
 extension String {
     var pathComponents: ([String], Bool) {
-        pathStringToPathComponents(self)
+        let namePath = OcaNamePath(components(separatedBy: "/"))
+        if namePath.count > 0, namePath.first!.isEmpty {
+            if namePath.allSatisfy(\.isEmpty) {
+                return ([], true)
+            } else {
+                return (Array(namePath[1...]), true)
+            }
+        } else {
+            return (namePath, false)
+        }
     }
 }
