@@ -69,6 +69,7 @@ final class OCACLI: Command {
         commands.register(SetFlag.self)
         commands.register(Set.self)
         commands.register(Show.self)
+        commands.register(Statistics.self)
         commands.register(Subscribe.self)
         commands.register(Up.self)
         commands.register(Unsubscribe.self)

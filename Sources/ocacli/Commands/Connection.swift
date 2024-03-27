@@ -69,3 +69,51 @@ struct ClearCache: REPLCommand {
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+extension Duration {
+    var timeInterval: TimeInterval {
+        TimeInterval(components.seconds) + Double(components.attoseconds) / 1e18
+    }
+}
+
+extension ContinuousClock.Instant {
+    var date: Date {
+        // FIXME: race condition from retrieving time twice
+        let duration = duration(to: .now)
+        return Date.now - duration.timeInterval
+    }
+}
+
+struct Statistics: REPLCommand {
+    static let name = ["statistics"]
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .medium
+
+        let statistics = await context.connection.statistics
+        context.print("isConnected: \(statistics.isConnected)")
+        context.print("requestCount: \(statistics.requestCount)")
+        context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
+        context.print("outstandingRequests: \(statistics.outstandingRequests)")
+        context
+            .print(
+                "subscribedEvents: \(statistics.subscribedEvents.map { "\($0.eventID)@\($0.emitterONo)" })"
+            )
+        context
+            .print(
+                "lastMessageSentTime: \(dateFormatter.string(from: statistics.lastMessageSentTime.date))"
+            )
+        if let lastMessageReceivedTime = statistics.lastMessageReceivedTime {
+            context
+                .print(
+                    "lastMessageReceivedTime: \(dateFormatter.string(from: lastMessageReceivedTime.date))"
+                )
+        }
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

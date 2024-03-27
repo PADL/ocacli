@@ -2,7 +2,6 @@
 - test autoreconnect
 - Tree / graph display
 - domain socket
-- Statistics
 - Sensor view
 - add back cyclic ref check in getRecursiveFallback()
 - ingest commands from command line
