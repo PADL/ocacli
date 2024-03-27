@@ -104,113 +104,125 @@ final class OCACLI: Command {
         return commandLine
     }
 
-    private func start() throws {
-        guard let lineReader = lineReader else { throw Ocp1Error.invalidHandle }
-        let context: Context
-
-        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+    private func initContext() async throws -> Context {
+        var logger = Logger(label: "com.padl.ocacli")
 
         guard let hostname, let port, !help else {
             usage()
         }
 
-        do {
-            context = try Task.synchronous {
-                var logger = Logger(label: "com.padl.ocacli")
-
-                if let logLevel = self.logLevel {
-                    guard let logLevel = Logger.Level(rawValue: logLevel) else {
-                        self.usage()
-                    }
-                    logger.logLevel = logLevel
-                }
-
-                var contextFlags: ContextFlags = [
-                    .enableRolePathLookupCache,
-                    .supportsFindActionObjectsByPath,
-                ]
-                let deviceEndpointInfo: DeviceEndpointInfo
-
-                if self.resolveDeviceTree {
-                    contextFlags.insert(.refreshDeviceTreeOnConnection)
-                }
-                if self.cacheProperties {
-                    contextFlags.insert([.cacheProperties, .subscribePropertyEvents])
-                }
-
-                guard let port = UInt16(exactly: port) else {
-                    throw Ocp1Error.serviceResolutionFailed
-                }
-
-                if self.udp {
-                    deviceEndpointInfo = DeviceEndpointInfo.udp(hostname, port)
-                } else {
-                    deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname, port)
-                }
-                return try await Context(
-                    deviceEndpointInfo: deviceEndpointInfo,
-                    contextFlags: contextFlags,
-                    logger: logger
-                )
+        if let logLevel = logLevel {
+            guard let logLevel = Logger.Level(rawValue: logLevel) else {
+                usage()
             }
+            logger.logLevel = logLevel
+        }
+
+        var contextFlags: ContextFlags = [
+            .enableRolePathLookupCache,
+            .supportsFindActionObjectsByPath,
+        ]
+        let deviceEndpointInfo: DeviceEndpointInfo
+
+        if resolveDeviceTree {
+            contextFlags.insert(.refreshDeviceTreeOnConnection)
+        }
+        if cacheProperties {
+            contextFlags.insert([.cacheProperties, .subscribePropertyEvents])
+        }
+
+        guard let port = UInt16(exactly: port) else {
+            throw Ocp1Error.serviceResolutionFailed
+        }
+
+        if udp {
+            deviceEndpointInfo = DeviceEndpointInfo.udp(hostname, port)
+        } else {
+            deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname, port)
+        }
+        return try await Context(
+            deviceEndpointInfo: deviceEndpointInfo,
+            contextFlags: contextFlags,
+            logger: logger
+        )
+    }
+
+    private func executeCommandLineCommands(context: Context) async throws {
+        for commandToExecute in commandsToExecute {
+            let tokens = commands.tokenizeCommand(commandToExecute)
+            let command = try await commands.command(
+                from: tokens,
+                context: context
+            )
+            try await command.execute(with: context)
+        }
+    }
+
+    private func readCommand(context: Context) throws -> [String] {
+        let commandLine = try readCommand(
+            lineReader!,
+            withPrompt: "\(context.currentPathString)> "
+        )
+        let tokens = commands.tokenizeCommand(commandLine)
+        return tokens
+    }
+
+    private func executeCommand(context: Context, tokens: [String]) async throws {
+        let command = try await commands.command(
+            from: tokens,
+            context: context
+        )
+        if await context.connection.isConnected == false && command
+            .isUsableWhenDisconnected == false
+        {
+            throw Ocp1Error.notConnected
+        }
+        try await command.execute(with: context)
+    }
+
+    private func start() throws {
+        let context: Context
+
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+
+        do {
+            context = try Task.synchronous { try await self.initContext() }
         } catch {
             print(error)
             exit(2)
         }
 
-        lineReader.setCompletionCallback { currentBuffer in
-            guard let completions = self.commands.getCompletions(
-                from: currentBuffer,
-                context: context
-            ) else { return [] }
-            return completions.filter { $0.hasPrefix(currentBuffer) }
-        }
+        if !commandsToExecute.isEmpty {
+            try Task
+                .synchronous { try await self.executeCommandLineCommands(context: context) }
+        } else {
+            var done = false
 
-        var done = false
+            guard let lineReader = lineReader else { throw Ocp1Error.invalidHandle }
 
-        while !done {
-            do {
-                if !commandsToExecute.isEmpty {
-                    try Task.synchronous { [self] in
-                        for commandToExecute in commandsToExecute {
-                            let tokens = commands.tokenizeCommand(commandToExecute)
-                            let command = try await self.commands.command(
-                                from: tokens,
-                                context: context
-                            )
-                            try await command.execute(with: context)
-                        }
-                    }
-                    done = true
-                } else {
-                    let commandLine = try readCommand(
-                        lineReader,
-                        withPrompt: "\(context.currentPathString)> "
-                    )
-                    let tokens = commands.tokenizeCommand(commandLine)
-                    if tokens.count == 0 {
-                        continue
-                    }
+            lineReader.setCompletionCallback { currentBuffer in
+                guard let completions = self.commands.getCompletions(
+                    from: currentBuffer,
+                    context: context
+                ) else { return [] }
+                return completions.filter { $0.hasPrefix(currentBuffer) }
+            }
+
+            while !done {
+                do {
+                    let tokens = try readCommand(context: context)
+                    if tokens.count == 0 { continue }
+
+                    lineReader.addHistory(tokens.joined(separator: " "))
 
                     try Task.synchronous {
-                        let command = try await self.commands.command(
-                            from: tokens,
-                            context: context
-                        )
-                        if await context.connection.isConnected == false && command
-                            .isUsableWhenDisconnected == false
-                        {
-                            throw Ocp1Error.notConnected
-                        }
-                        try await command.execute(with: context)
+                        try await self.executeCommand(context: context, tokens: tokens)
                     }
-                    lineReader.addHistory(commandLine)
+                } catch LineReaderError.CTRLC, LineReaderError.EOF {
+                    done = true
+                } catch {
+                    context.print(error)
                 }
-            } catch LineReaderError.CTRLC, LineReaderError.EOF {
-                done = true
-            } catch {
-                context.print(error)
-                if !commandsToExecute.isEmpty { break }
             }
         }
         try Task.synchronous { await context.finish() }
