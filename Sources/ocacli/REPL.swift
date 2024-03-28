@@ -188,6 +188,26 @@ extension Array: REPLStringConvertible where Element: REPLStringConvertible {
     }
 }
 
+extension Float: REPLStringConvertible {
+    func replString(context: Context, object: OcaRoot) async -> String {
+        String(format: "%.2f", self)
+    }
+}
+
+extension Double: REPLStringConvertible {
+    func replString(context: Context, object: OcaRoot) async -> String {
+        String(format: "%.2f", self)
+    }
+}
+
+extension OcaBoundedPropertyValue: REPLStringConvertible
+    where Value: BinaryFloatingPoint & REPLStringConvertible
+{
+    func replString(context: Context, object: OcaRoot) async -> String {
+        await value.replString(context: context, object: object)
+    }
+}
+
 extension OcaRoot: REPLStringConvertible {
     func replString(context: Context, object: OcaRoot) async -> String {
         if let role = try? await getRole() {

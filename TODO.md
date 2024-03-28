@@ -1,7 +1,7 @@
 - support ../.., ../., etc paths
 - Tree / graph display
 - domain socket support
-- fix monitor view ctrl-C
+- ctrl-C in watch view shouldn't exit program
 - add back cyclic ref check in getRecursiveFallback()
 - fix reconnect bug (issue #2)
 - test autoreconnect
