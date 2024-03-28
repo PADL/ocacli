@@ -69,7 +69,7 @@ struct Help: REPLCommand {
         for command in REPLCommandRegistry.shared.replCanonicalCommands.sorted() {
             let summary = REPLCommandRegistry.shared.replCommands[command]!.summary
             context
-                .print("  \(command.padding(toLength: 16, withPad: " ", startingAt: 0)) \(summary)")
+                .print("  \(command.padding(toLength: 21, withPad: " ", startingAt: 0)) \(summary)")
         }
     }
 
