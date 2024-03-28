@@ -19,6 +19,7 @@ import SwiftOCA
 
 struct Set: REPLCommand {
     static let name = ["set"]
+    static let summary = "Set a property"
 
     @REPLCommandArgument
     var propertyName: String!

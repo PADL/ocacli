@@ -19,6 +19,7 @@ import SwiftOCA
 
 struct Flags: REPLCommand {
     static let name = ["flags"]
+    static let summary = "Show enabled flags"
 
     init() {}
 
@@ -35,6 +36,7 @@ struct Flags: REPLCommand {
 
 struct SetFlag: REPLCommand {
     static let name = ["set-flag"]
+    static let summary = "Enable a flag"
 
     @REPLCommandArgument
     var flagName: String!
@@ -54,6 +56,7 @@ struct SetFlag: REPLCommand {
 
 struct ClearFlag: REPLCommand {
     static let name = ["clear-flag"]
+    static let summary = "Clear a flag"
 
     @REPLCommandArgument
     var flagName: String!

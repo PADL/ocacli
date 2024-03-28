@@ -19,6 +19,7 @@ import SwiftOCA
 
 struct Exit: REPLCommand {
     static let name = ["exit", "quit"]
+    static let summary = "Exit the OCA CLI"
 
     init() {}
 
@@ -32,6 +33,7 @@ struct Exit: REPLCommand {
 
 struct ConnectionInfo: REPLCommand {
     static let name = ["connection-info", "conn"]
+    static let summary = "Display connection status"
 
     init() {}
 
@@ -45,6 +47,7 @@ struct ConnectionInfo: REPLCommand {
 
 struct PrintWorkingPath: REPLCommand {
     static let name = ["pwd"]
+    static let summary = "Print current object path"
 
     init() {}
 
@@ -57,6 +60,7 @@ struct PrintWorkingPath: REPLCommand {
 
 struct Up: REPLCommand {
     static let name = ["up"]
+    static let summary = "Change to parent object path"
 
     init() {}
 
@@ -69,6 +73,7 @@ struct Up: REPLCommand {
 
 struct ChangePath: REPLCommand, REPLCurrentBlockCompletable {
     static let name = ["cd"]
+    static let summary = "Change current object path"
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -82,6 +87,7 @@ struct ChangePath: REPLCommand, REPLCurrentBlockCompletable {
 
 struct PushPath: REPLCommand, REPLCurrentBlockCompletable {
     static let name = ["pushd"]
+    static let summary = "Add current path to top of stack"
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -95,6 +101,7 @@ struct PushPath: REPLCommand, REPLCurrentBlockCompletable {
 
 struct PopPath: REPLCommand, REPLCurrentBlockCompletable {
     static let name = ["popd"]
+    static let summary = "Remove object from stack"
 
     init() {}
 
@@ -105,6 +112,7 @@ struct PopPath: REPLCommand, REPLCurrentBlockCompletable {
 
 struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["list", "ls"]
+    static let summary = "Lists action objects in block"
 
     var minimumRequiredArguments: Int { 0 }
 
@@ -139,6 +147,7 @@ struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
 
 struct Resolve: REPLCommand {
     static let name = ["resolve"]
+    static let summary = "Resolves an object number to a name"
 
     @REPLCommandArgument
     var oNoString: String!

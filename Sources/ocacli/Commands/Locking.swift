@@ -18,7 +18,8 @@ import Foundation
 import SwiftOCA
 
 struct LockTotal: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["lock-total"]
+    static let name = ["lock-no-read-write"]
+    static let summary = "Lock object from reads and writes"
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -32,6 +33,7 @@ struct LockTotal: REPLCommand, REPLCurrentBlockCompletable {
 
 struct Unlock: REPLCommand, REPLCurrentBlockCompletable {
     static let name = ["unlock"]
+    static let summary = "Unlock object"
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -44,7 +46,8 @@ struct Unlock: REPLCommand, REPLCurrentBlockCompletable {
 }
 
 struct LockNoWrite: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["lock-readonly", "lock"]
+    static let name = ["lock-no-write", "lock"]
+    static let summary = "Lock object from writes"
 
     @REPLCommandArgument
     var object: OcaRoot!

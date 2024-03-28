@@ -49,6 +49,7 @@ extension OcaObjectIdentification: REPLStringConvertible {
 
 struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["show", "cat"]
+    static let summary = "Show object properties"
 
     var minimumRequiredArguments: Int { 0 }
 
@@ -103,6 +104,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
 
 struct Get: REPLCommand {
     static let name = ["get"]
+    static let summary = "Retrieve a property"
 
     @REPLCommandArgument
     var propertyName: String!
@@ -135,6 +137,7 @@ struct Get: REPLCommand {
 
 struct Dump: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["dump"]
+    static let summary = "Recursively display JSON-formatted object"
 
     var minimumRequiredArguments: Int { 0 }
 

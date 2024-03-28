@@ -34,6 +34,7 @@ class REPLCommandArgument<T>: REPLCommandArgumentMarker {
 
 protocol REPLCommand {
     static var name: [String] { get }
+    static var summary: String { get }
 
     init()
     func execute(with context: Context) async throws
@@ -60,12 +61,15 @@ extension REPLCurrentBlockCompletable {
 
 struct Help: REPLCommand {
     static let name = ["help", "?"]
+    static let summary = "Display this help command"
 
     init() {}
 
     func execute(with context: Context) async throws {
         for command in REPLCommandRegistry.shared.replCanonicalCommands.sorted() {
-            context.print(command)
+            let summary = REPLCommandRegistry.shared.replCommands[command]!.summary
+            context
+                .print("  \(command.padding(toLength: 16, withPad: " ", startingAt: 0)) \(summary)")
         }
     }
 

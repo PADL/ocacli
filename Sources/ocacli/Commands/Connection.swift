@@ -19,6 +19,7 @@ import SwiftOCA
 
 struct Connect: REPLCommand {
     static let name = ["connect"]
+    static let summary = "Connect to device"
 
     init() {}
 
@@ -33,6 +34,7 @@ struct Connect: REPLCommand {
 
 struct Disconnect: REPLCommand {
     static let name = ["disconnect"]
+    static let summary = "Disconnect from device"
 
     init() {}
 
@@ -47,6 +49,7 @@ struct Disconnect: REPLCommand {
 
 struct DeviceInfo: REPLCommand {
     static let name = ["device-info"]
+    static let summary = "Show device information"
 
     init() {}
 
@@ -60,6 +63,7 @@ struct DeviceInfo: REPLCommand {
 
 struct ClearCache: REPLCommand {
     static let name = ["clear-cache"]
+    static let summary = "Clear object cache"
 
     init() {}
 
@@ -86,6 +90,7 @@ extension ContinuousClock.Instant {
 
 struct Statistics: REPLCommand {
     static let name = ["statistics"]
+    static let summary = "Show connection statistics"
 
     init() {}
 

@@ -19,6 +19,7 @@ import SwiftOCA
 
 struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["subscribe"]
+    static let summary = "Add a property event subscription"
 
     var minimumRequiredArguments: Int { 0 }
 
@@ -42,6 +43,7 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
 
 struct Unsubscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["unsubscribe"]
+    static let summary = "Remove a property event subscription"
 
     var minimumRequiredArguments: Int { 0 }
 
@@ -60,6 +62,7 @@ struct Unsubscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
 
 struct Watch: REPLCommand {
     static let name = ["watch"]
+    static let summary = "Monitor property events"
 
     @REPLCommandArgument
     var propertyName: String!
