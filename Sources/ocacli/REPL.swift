@@ -200,11 +200,13 @@ extension Double: REPLStringConvertible {
     }
 }
 
-extension OcaBoundedPropertyValue: REPLStringConvertible
-    where Value: BinaryFloatingPoint & REPLStringConvertible
-{
+extension OcaBoundedPropertyValue: REPLStringConvertible {
     func replString(context: Context, object: OcaRoot) async -> String {
-        await value.replString(context: context, object: object)
+        if let value = value as? REPLStringConvertible {
+            return await value.replString(context: context, object: object)
+        } else {
+            return String(describing: value)
+        }
     }
 }
 
