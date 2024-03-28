@@ -23,6 +23,7 @@ struct Exit: REPLCommand {
     init() {}
 
     func execute(with context: Context) async throws {
+        await context.finish()
         exit(0)
     }
 

@@ -153,18 +153,17 @@ enum DeviceEndpointInfo {
 
 final class Context {
     let connection: Ocp1Connection
-    let logger: Logger
+    private let logger: Logger
+
+    // the following variables should only be mutated by the command sink (the async task)
     var contextFlags: ContextFlags
     var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
 
-    // TODO: UDP support
-    // TODO: domain socket support
-
+    // the following variables can be read by the command source (the event loop)
     private(set) var currentObject: OcaRoot
-    private(set) var currentObjectPath: OcaNamePath? = [""]
-    private(set) var currentObjectCompletions: [String]? = [] // bool if container
-    private var sparseRolePathCache: [OcaNamePath: OcaRoot] =
-        [:] // cache FindObjectsByRole() results
+    private(set) var currentObjectCompletions: [String]? = []
+    private var currentObjectPath: OcaNamePath? = [""]
+    private var sparseRolePathCache: [OcaNamePath: OcaRoot] = [:]
 
     init(
         deviceEndpointInfo: DeviceEndpointInfo,

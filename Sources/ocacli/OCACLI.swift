@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import AsyncAlgorithms
 import CommandLineKit
 import Foundation
 import Logging
@@ -22,34 +23,39 @@ import SwiftOCA
 @main
 final class OCACLI: Command {
     @CommandArgument(short: "h", long: "hostname", description: "Device host name")
-    var hostname: String?
+    private var hostname: String?
     @CommandArguments(short: "c", long: "command", description: "Commands to execute")
-    var commandsToExecute: [String]
+    private var commandsToExecute: [String]
     @CommandArgument(short: "p", long: "port", description: "Device port")
-    var port: Int?
+    private var port: Int?
     @CommandOption(short: "U", long: "udp", description: "Use datagram sockets")
-    var udp: Bool
+    private var udp: Bool
     @CommandOption(
         short: "r",
         long: "resolve-device-tree",
         description: "Resolve device action objects at startup"
     )
-    var resolveDeviceTree: Bool
+    private var resolveDeviceTree: Bool
     @CommandOption(
         short: "s",
         long: "subscribe-properties",
         description: "Subscribe to property change events"
     )
-    var cacheProperties: Bool
+    private var cacheProperties: Bool
     @CommandArgument(short: "l", long: "log-level", description: "Log level")
-    var logLevel: String?
+    private var logLevel: String?
     @CommandOption(long: "help", description: "Show usage description")
-    var help: Bool
+    private var help: Bool
     @CommandFlags // Inject the flags object
-    var flags: CommandLineKit.Flags
+    private var flags: CommandLineKit.Flags
 
-    let lineReader = LineReader()
-    let commands = REPLCommandRegistry.shared
+    private let lineReader = LineReader()
+    private let commands = REPLCommandRegistry.shared
+
+    private typealias CommandTokens = [String]
+    private var context: Context!
+    private var commandSourceStream: AsyncStream<CommandTokens>!
+    private let commandDidComplete = DispatchSemaphore(value: 0)
 
     init() {
         commands.register(ChangePath.self)
@@ -78,7 +84,7 @@ final class OCACLI: Command {
         commands.register(Unsubscribe.self)
     }
 
-    func usage() -> Never {
+    private func usage() -> Never {
         print(
             flags.usageDescription(
                 usageName: TextStyle.bold.properties.apply(to: "usage:"),
@@ -92,7 +98,7 @@ final class OCACLI: Command {
         exit(1)
     }
 
-    func readCommand(_ ln: LineReader, withPrompt prompt: String) throws -> String {
+    private func readCommand(_ ln: LineReader, withPrompt prompt: String) throws -> String {
         let commandLine = try ln.readLine(
             prompt: prompt,
             maxCount: 200,
@@ -147,27 +153,14 @@ final class OCACLI: Command {
         )
     }
 
-    private func executeCommandLineCommands(context: Context) async throws {
-        for commandToExecute in commandsToExecute {
-            let tokens = commands.tokenizeCommand(commandToExecute)
-            let command = try await commands.command(
-                from: tokens,
-                context: context
-            )
-            try await command.execute(with: context)
-        }
-    }
-
-    private func readCommand(context: Context) throws -> [String] {
-        let commandLine = try readCommand(
-            lineReader!,
-            withPrompt: "\(context.currentPathString)> "
-        )
-        let tokens = commands.tokenizeCommand(commandLine)
-        return tokens
+    private func readCommand() throws -> [String] {
+        let prompt = "\(context.currentPathString)> "
+        let commandLine = try readCommand(lineReader!, withPrompt: prompt)
+        return commands.tokenizeCommand(commandLine)
     }
 
     private func executeCommand(context: Context, tokens: [String]) async throws {
+        guard tokens.count > 0 else { return }
         let command = try await commands.command(
             from: tokens,
             context: context
@@ -180,56 +173,82 @@ final class OCACLI: Command {
         try await command.execute(with: context)
     }
 
-    private func start() throws {
-        let context: Context
+    private func commandSourceEventLoop(
+        _ continuation: AsyncStream<CommandTokens>
+            .Continuation
+    ) throws {
+        guard let lineReader = lineReader else { throw Ocp1Error.invalidHandle }
 
-        LoggingSystem.bootstrap(StreamLogHandler.standardError)
-
-        do {
-            context = try Task.synchronous { try await self.initContext() }
-        } catch {
-            print(error)
-            exit(2)
+        lineReader.setCompletionCallback { currentBuffer in
+            guard let completions = self.commands.getCompletions(
+                from: currentBuffer,
+                context: self.context
+            ) else { return [] }
+            return completions.filter { $0.hasPrefix(currentBuffer) }
         }
 
-        if !commandsToExecute.isEmpty {
-            try Task
-                .synchronous { try await self.executeCommandLineCommands(context: context) }
-        } else {
-            var done = false
-
-            guard let lineReader = lineReader else { throw Ocp1Error.invalidHandle }
-
-            lineReader.setCompletionCallback { currentBuffer in
-                guard let completions = self.commands.getCompletions(
-                    from: currentBuffer,
-                    context: context
-                ) else { return [] }
-                return completions.filter { $0.hasPrefix(currentBuffer) }
+        var done = false
+        while !done {
+            do {
+                commandDidComplete.wait()
+                let tokens = try readCommand()
+                continuation.yield(tokens)
+                lineReader.addHistory(tokens.joined(separator: " "))
+            } catch LineReaderError.CTRLC, LineReaderError.EOF {
+                done = true
+            } catch {
+                context.print(error)
             }
+        }
+    }
 
-            while !done {
-                do {
-                    let tokens = try readCommand(context: context)
-                    if tokens.count == 0 { continue }
-
-                    lineReader.addHistory(tokens.joined(separator: " "))
-
-                    try Task.synchronous {
-                        try await self.executeCommand(context: context, tokens: tokens)
+    private func initCommandSourceStream() -> AsyncStream<CommandTokens>.Continuation {
+        var continuation: AsyncStream<CommandTokens>.Continuation!
+        commandSourceStream = AsyncStream<CommandTokens> {
+            let task = Task {
+                self.context = try await self.initContext()
+                commandDidComplete.signal()
+                for await tokens in commandSourceStream {
+                    do {
+                        try await executeCommand(context: context, tokens: tokens)
+                    } catch {
+                        context.print(error)
                     }
-                } catch LineReaderError.CTRLC, LineReaderError.EOF {
-                    done = true
-                } catch {
-                    context.print(error)
+                    commandDidComplete.signal()
                 }
             }
+            $0.onTermination = { @Sendable _ in
+                task.cancel()
+            }
+            continuation = $0
         }
-        try Task.synchronous { await context.finish() }
+        return continuation
+    }
+
+    private func runInteractiveMode() throws {
+        let continuation = initCommandSourceStream()
+        DispatchQueue(label: "com.padl.ocacli.repl", qos: .utility).sync {
+            try? self.commandSourceEventLoop(continuation)
+            continuation.yield([Exit.name[0]])
+        }
+    }
+
+    private func runBatchMode(_ commandsToExecute: [String]) throws {
+        let continuation = initCommandSourceStream()
+        for commandToExecute in commandsToExecute + [Exit.name[0]] {
+            let tokens = commands.tokenizeCommand(commandToExecute)
+            continuation.yield(tokens)
+        }
     }
 
     func run() throws {
-        let queue = DispatchQueue(label: "com.padl.ocacli.repl", qos: .utility)
-        try queue.sync { try start() }
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+
+        if commandsToExecute.isEmpty {
+            try runInteractiveMode()
+        } else {
+            try runBatchMode(commandsToExecute)
+        }
+        dispatchMain()
     }
 }
