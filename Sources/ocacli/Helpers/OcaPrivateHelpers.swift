@@ -17,25 +17,7 @@
 import Foundation
 @_spi(SwiftOCAPrivate) import SwiftOCA
 
-// try to minimize the amount of stuff using private SPI
-
-extension Context {
-    var propertyResolutionFlags: OcaPropertyResolutionFlags {
-        var flags = OcaPropertyResolutionFlags()
-
-        if contextFlags.contains(.cacheProperties) {
-            flags.formUnion([.cacheValue, .throwCachedError, .cacheErrors, .returnCachedValue])
-        }
-        if contextFlags.contains(.subscribePropertyEvents) {
-            flags.formUnion([.subscribeEvents])
-        }
-        return flags
-    }
-
-    var cachedPropertyResolutionFlags: OcaPropertyResolutionFlags {
-        propertyResolutionFlags.union([.returnCachedValue])
-    }
-}
+// try to minimize the amount of stuff using private SPI, eventually make this public API
 
 extension OcaOwnable {
     func getOwnerObject(flags: OcaPropertyResolutionFlags) async throws -> OcaBlock {

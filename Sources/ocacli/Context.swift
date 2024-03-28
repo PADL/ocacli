@@ -446,4 +446,20 @@ final class Context {
             )
         }
     }
+
+    var propertyResolutionFlags: OcaPropertyResolutionFlags {
+        var flags = OcaPropertyResolutionFlags()
+
+        if contextFlags.contains(.cacheProperties) {
+            flags.formUnion([.cacheValue, .throwCachedError, .cacheErrors, .returnCachedValue])
+        }
+        if contextFlags.contains(.subscribePropertyEvents) {
+            flags.formUnion([.subscribeEvents])
+        }
+        return flags
+    }
+
+    var cachedPropertyResolutionFlags: OcaPropertyResolutionFlags {
+        propertyResolutionFlags.union([.returnCachedValue])
+    }
 }
