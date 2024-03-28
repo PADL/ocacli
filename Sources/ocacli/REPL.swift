@@ -217,3 +217,70 @@ func replString(for value: Any, context: Context, object: OcaRoot) async -> Stri
         return String(describing: value)
     }
 }
+
+func replValue(
+    for stringValue: String,
+    type: Any.Type,
+    context: Context,
+    object: OcaRoot
+) async throws -> Any {
+    if let type = type as? REPLStringInitializable.Type {
+        return try await type.init(context: context, object: object, stringValue)
+    } else if let caseIterableValueType = type as? any CaseIterable.Type,
+              let caseIterableValue = caseIterableValueType.value(for: stringValue)
+    {
+        return caseIterableValue
+    } else if let fixedIntegerType = type as? any FixedWidthInteger.Type,
+              let fixedIntegerValue = Int(stringValue),
+              let fixedIntegerValue = fixedIntegerType.init(exactly: fixedIntegerValue)
+    {
+        return fixedIntegerValue
+    } else {
+        throw Ocp1Error.status(.badFormat)
+    }
+}
+
+protocol REPLStringInitializable: Sendable {
+    init(context: Context, object: OcaRoot, _ replString: String) async throws
+}
+
+extension Double: REPLStringInitializable {
+    init(context: Context, object: OcaRoot, _ replString: String) async throws {
+        guard let floatingPointValue = Double(replString) else {
+            throw Ocp1Error.status(.badFormat)
+        }
+        self = floatingPointValue
+    }
+}
+
+extension String: REPLStringInitializable {
+    init(context: Context, object: OcaRoot, _ replString: String) async throws {
+        self = replString
+    }
+}
+
+extension Float: REPLStringInitializable {
+    init(context: Context, object: OcaRoot, _ replString: String) async throws {
+        guard let floatingPointValue = Float(replString) else {
+            throw Ocp1Error.status(.badFormat)
+        }
+        self = floatingPointValue
+    }
+}
+
+extension Bool: REPLStringInitializable {
+    init(context: Context, object: OcaRoot, _ replString: String) async throws {
+        self = NSString(string: replString).boolValue
+    }
+}
+
+private extension CaseIterable {
+    static func value(for string: String) -> Any? {
+        for aCase in allCases {
+            if String(describing: aCase) == string {
+                return aCase
+            }
+        }
+        return nil
+    }
+}

@@ -42,10 +42,10 @@ struct Set: REPLCommand {
             throw Ocp1Error.status(.parameterError)
         }
 
-        try await context.currentObject.setValueDescription(
+        try await context.currentObject.setValueReplString(
             context: context,
             keyPath: foundProperty.1,
-            value: propertyValue
+            propertyValue
         )
     }
 

@@ -83,7 +83,7 @@ extension OcaRoot {
 }
 
 extension OcaRoot {
-    func getValueDescription(
+    func getValueReplString(
         context: Context,
         keyPath: PartialKeyPath<OcaRoot>
     ) async throws -> String? {
@@ -97,13 +97,19 @@ extension OcaRoot {
         return await ocacli.replString(for: value, context: context, object: self)
     }
 
-    func setValueDescription(
+    func setValueReplString(
         context: Context,
         keyPath: PartialKeyPath<OcaRoot>,
-        value: String
+        _ replString: String
     ) async throws {
         let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
-        try await subject._set(self, description: value)
+        let value = try await replValue(
+            for: replString,
+            type: subject.valueType,
+            context: context,
+            object: self
+        )
+        try await subject._set(self, value)
     }
 
     func getJsonRepresentation(

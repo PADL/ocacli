@@ -34,7 +34,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
         property: String,
         keyPath: PartialKeyPath<OcaRoot>
     ) async throws -> (String, String?) {
-        let value = try await object.getValueDescription(
+        let value = try await object.getValueReplString(
             context: context,
             keyPath: keyPath
         )
@@ -85,7 +85,7 @@ struct Get: REPLCommand {
         var foundProperty = false
         for property in context.currentObject.allPropertyKeyPaths {
             if property.key == propertyName {
-                let value = try await context.currentObject.getValueDescription(
+                let value = try await context.currentObject.getValueReplString(
                     context: context,
                     keyPath: property.value
                 )
