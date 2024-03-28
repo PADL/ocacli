@@ -58,8 +58,8 @@ struct Unsubscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
     }
 }
 
-struct Monitor: REPLCommand {
-    static let name = ["monitor"]
+struct Watch: REPLCommand {
+    static let name = ["watch"]
 
     @REPLCommandArgument
     var propertyName: String!

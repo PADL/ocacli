@@ -70,7 +70,6 @@ final class OCACLI: Command {
         commands.register(Flags.self)
         commands.register(Get.self)
         commands.register(List.self)
-        commands.register(Monitor.self)
         commands.register(PrintWorkingPath.self)
         commands.register(PushPath.self)
         commands.register(PopPath.self)
@@ -82,6 +81,7 @@ final class OCACLI: Command {
         commands.register(Subscribe.self)
         commands.register(Up.self)
         commands.register(Unsubscribe.self)
+        commands.register(Watch.self)
     }
 
     private func usage() -> Never {
