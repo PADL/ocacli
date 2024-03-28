@@ -1,7 +1,7 @@
 - support ../.., ../., etc paths
 - Tree / graph display
-- domain socket
+- domain socket support
 - fix monitor view ctrl-C
 - add back cyclic ref check in getRecursiveFallback()
-- fix reconnect bug
+- fix reconnect bug (issue #2)
 - test autoreconnect

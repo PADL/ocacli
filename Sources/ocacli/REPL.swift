@@ -176,3 +176,44 @@ final class REPLCommandRegistry {
         return completions
     }
 }
+
+protocol REPLStringConvertible: Sendable {
+    func replString(context: Context, object: OcaRoot) async -> String
+}
+
+extension Array: REPLStringConvertible where Element: REPLStringConvertible {
+    func replString(context: Context, object: OcaRoot) async -> String {
+        let replStrings = await asyncMap { await $0.replString(context: context, object: object) }
+        return String(describing: replStrings)
+    }
+}
+
+extension OcaRoot: REPLStringConvertible {
+    func replString(context: Context, object: OcaRoot) async -> String {
+        if let role = try? await getRole() {
+            return role
+        } else {
+            return objectNumber.oNoString
+        }
+    }
+}
+
+extension OcaObjectIdentification: REPLStringConvertible {
+    func replString(context: Context, object: OcaRoot) async -> String {
+        guard let _object = await context.connection.resolve(object: self) else {
+            return oNo.oNoString
+        }
+        return await _object.replString(context: context, object: object)
+    }
+}
+
+func replString(for value: Any, context: Context, object: OcaRoot) async -> String {
+    if let value = value as? REPLStringConvertible {
+        return await value.replString(
+            context: context,
+            object: context.currentObject
+        )
+    } else {
+        return String(describing: value)
+    }
+}
