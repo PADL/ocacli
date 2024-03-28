@@ -109,7 +109,7 @@ extension OcaRoot {
             context: context,
             object: self
         )
-        try await subject._set(self, value)
+        try await subject._setValue(self, value)
     }
 
     func getJsonRepresentation(
