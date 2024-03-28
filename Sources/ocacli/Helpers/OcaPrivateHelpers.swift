@@ -20,8 +20,8 @@ import Foundation
 // try to minimize the amount of stuff using private SPI
 
 extension Context {
-    var propertyResolutionFlags: _OcaPropertyResolutionFlags {
-        var flags = _OcaPropertyResolutionFlags()
+    var propertyResolutionFlags: OcaPropertyResolutionFlags {
+        var flags = OcaPropertyResolutionFlags()
 
         if contextFlags.contains(.cacheProperties) {
             flags.formUnion([.cacheValue, .throwCachedError, .cacheErrors, .returnCachedValue])
@@ -32,17 +32,17 @@ extension Context {
         return flags
     }
 
-    var cachedPropertyResolutionFlags: _OcaPropertyResolutionFlags {
+    var cachedPropertyResolutionFlags: OcaPropertyResolutionFlags {
         propertyResolutionFlags.union([.returnCachedValue])
     }
 }
 
 extension OcaOwnable {
-    func getOwnerObject(flags: _OcaPropertyResolutionFlags) async throws -> OcaBlock {
+    func getOwnerObject(flags: OcaPropertyResolutionFlags) async throws -> OcaBlock {
         try await _getOwnerObject(flags: flags)
     }
 
-    func getOwner(flags: _OcaPropertyResolutionFlags) async throws -> OcaONo {
+    func getOwner(flags: OcaPropertyResolutionFlags) async throws -> OcaONo {
         try await _getOwner(flags: flags)
     }
 }
@@ -56,11 +56,11 @@ extension OcaRoot {
         try await _getRole()
     }
 
-    func getRolePath(flags: _OcaPropertyResolutionFlags) async throws -> OcaNamePath {
+    func getRolePath(flags: OcaPropertyResolutionFlags) async throws -> OcaNamePath {
         try await _getRolePath(flags: flags)
     }
 
-    private func isOrphan(flags: _OcaPropertyResolutionFlags) async throws -> Bool {
+    private func isOrphan(flags: OcaPropertyResolutionFlags) async throws -> Bool {
         if objectNumber == OcaRootBlockONo {
             return false
         } else
@@ -71,7 +71,7 @@ extension OcaRoot {
         }
     }
 
-    func getRolePathString(flags: _OcaPropertyResolutionFlags) async throws -> String {
+    func getRolePathString(flags: OcaPropertyResolutionFlags) async throws -> String {
         if let rolePathString = try? await getRolePath(flags: flags).pathString {
             return rolePathString
         } else if (try? await isOrphan(flags: flags)) ?? false {
@@ -82,19 +82,36 @@ extension OcaRoot {
     }
 }
 
+extension OcaPropertySubjectRepresentable {
+    func getValue<T>(
+        _ object: OcaRoot,
+        flags: OcaPropertyResolutionFlags,
+        transformedBy block: (Value) async throws -> T
+    ) async throws -> T {
+        let value = try await _getValue(object, flags: flags)
+        return try await block(value)
+    }
+
+    func setValue<T>(
+        _ object: OcaRoot,
+        _ newValue: T,
+        transformedBy block: (T) async throws -> Any
+    ) async throws {
+        let value = try await block(newValue)
+        try await _setValue(object, value)
+    }
+}
+
 extension OcaRoot {
     func getValueReplString(
         context: Context,
         keyPath: PartialKeyPath<OcaRoot>
     ) async throws -> String? {
         let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
-        // special hoops to avoid caching, check context for caching environment variable
-        guard let value = try? await subject._getValue(
-            self,
-            flags: context.propertyResolutionFlags
-        ) else { return nil }
 
-        return await ocacli.replString(for: value, context: context, object: self)
+        return try? await subject.getValue(self, flags: context.propertyResolutionFlags) {
+            await ocacli.replString(for: $0, context: context, object: self)
+        }
     }
 
     func setValueReplString(
@@ -103,23 +120,14 @@ extension OcaRoot {
         _ replString: String
     ) async throws {
         let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
-        let value = try await replValue(
-            for: replString,
-            type: subject.valueType,
-            context: context,
-            object: self
-        )
-        try await subject._setValue(self, value)
-    }
 
-    func getJsonRepresentation(
-        context: Context,
-        options: JSONSerialization.WritingOptions
-    ) async throws -> Data {
-        let jsonResultData = try await JSONSerialization.data(
-            withJSONObject: _getJsonValue(flags: context.propertyResolutionFlags),
-            options: options
-        )
-        return jsonResultData
+        try await subject.setValue(self, replString) {
+            try await replValue(
+                for: $0,
+                type: subject.valueType,
+                context: context,
+                object: self
+            )
+        }
     }
 }

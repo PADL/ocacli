@@ -41,6 +41,20 @@ extension OcaBlock {
     }
 }
 
+@OcaConnection
+extension OcaRoot {
+    func getJsonRepresentation(
+        context: Context,
+        options: JSONSerialization.WritingOptions
+    ) async throws -> Data {
+        let jsonResultData = try await JSONSerialization.data(
+            withJSONObject: getJsonValue(flags: context.propertyResolutionFlags),
+            options: options
+        )
+        return jsonResultData
+    }
+}
+
 extension OcaONo {
     var oNoString: String {
         "<\(self)>"
