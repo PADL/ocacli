@@ -64,7 +64,7 @@ extension OcaRoot {
     }
 }
 
-extension OcaPropertySubjectRepresentable {
+private extension OcaPropertySubjectRepresentable {
     func getValue<T>(
         _ object: OcaRoot,
         flags: OcaPropertyResolutionFlags,
@@ -91,7 +91,10 @@ extension OcaRoot {
     ) async throws -> String? {
         let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
 
-        return try? await subject.getValue(self, flags: context.propertyResolutionFlags) {
+        return try? await subject.getValue(
+            self,
+            flags: context.contextFlags.propertyResolutionFlags
+        ) {
             await ocacli.replString(for: $0, context: context, object: self)
         }
     }

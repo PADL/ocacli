@@ -78,6 +78,22 @@ struct ContextFlags: OptionSet {
             refreshDeviceTreeOnConnection: contains(.refreshDeviceTreeOnConnection)
         )
     }
+
+    var propertyResolutionFlags: OcaPropertyResolutionFlags {
+        var flags = OcaPropertyResolutionFlags()
+
+        if contains(.cacheProperties) {
+            flags.formUnion([.cacheValue, .throwCachedError, .cacheErrors, .returnCachedValue])
+        }
+        if contains(.subscribePropertyEvents) {
+            flags.formUnion([.subscribeEvents])
+        }
+        return flags
+    }
+
+    var cachedPropertyResolutionFlags: OcaPropertyResolutionFlags {
+        propertyResolutionFlags.union([.returnCachedValue])
+    }
 }
 
 enum DeviceEndpointInfo {
@@ -324,7 +340,8 @@ final class Context {
         } else if path == "." {
             object = currentObject
         } else if path == "..", let currentObject = currentObject as? OcaOwnable {
-            let owner = try await currentObject.getOwner(flags: cachedPropertyResolutionFlags)
+            let owner = try await currentObject
+                .getOwner(flags: contextFlags.cachedPropertyResolutionFlags)
             object = await connection
                 .resolve(object: OcaObjectIdentification(
                     oNo: owner,
@@ -403,7 +420,8 @@ final class Context {
     }
 
     func changeCurrentPath(to object: OcaRoot) async throws {
-        let newRolePath = try await object.getRolePath(flags: cachedPropertyResolutionFlags)
+        let newRolePath = try await object
+            .getRolePath(flags: contextFlags.cachedPropertyResolutionFlags)
         currentObject = object
         currentObjectPath = newRolePath
         await refreshCurrentObjectCompletions()
@@ -437,7 +455,7 @@ final class Context {
             let emitterPath: String
             if let emitter {
                 emitterPath = try await emitter
-                    .getRolePathString(flags: cachedPropertyResolutionFlags)
+                    .getRolePathString(flags: contextFlags.cachedPropertyResolutionFlags)
             } else {
                 emitterPath = event.emitterONo.oNoString
             }
@@ -445,21 +463,5 @@ final class Context {
                 "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
             )
         }
-    }
-
-    var propertyResolutionFlags: OcaPropertyResolutionFlags {
-        var flags = OcaPropertyResolutionFlags()
-
-        if contextFlags.contains(.cacheProperties) {
-            flags.formUnion([.cacheValue, .throwCachedError, .cacheErrors, .returnCachedValue])
-        }
-        if contextFlags.contains(.subscribePropertyEvents) {
-            flags.formUnion([.subscribeEvents])
-        }
-        return flags
-    }
-
-    var cachedPropertyResolutionFlags: OcaPropertyResolutionFlags {
-        propertyResolutionFlags.union([.returnCachedValue])
     }
 }

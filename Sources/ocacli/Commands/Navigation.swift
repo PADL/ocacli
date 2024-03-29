@@ -162,7 +162,10 @@ struct Resolve: REPLCommand {
             throw Ocp1Error.status(.badONo)
         }
         try await context
-            .print(object.getRolePathString(flags: context.cachedPropertyResolutionFlags))
+            .print(
+                object
+                    .getRolePathString(flags: context.contextFlags.cachedPropertyResolutionFlags)
+            )
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
