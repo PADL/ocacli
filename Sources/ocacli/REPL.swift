@@ -296,6 +296,12 @@ extension Bool: REPLStringInitializable {
     }
 }
 
+extension OcaObjectIdentification: REPLStringInitializable {
+    init(context: Context, object: OcaRoot, _ replString: String) async throws {
+        self = try await context.resolve(rolePath: replString).objectIdentification
+    }
+}
+
 private extension CaseIterable {
     static func value(for string: String) -> Any? {
         for aCase in allCases {
