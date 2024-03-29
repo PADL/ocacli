@@ -17,9 +17,11 @@
 import Foundation
 import SwiftOCA
 
-struct LockTotal: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["lock-no-read-write"]
+struct LockNoReadWrite: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
+    static let name = ["lock-total", "lock-no-read-write"]
     static let summary = "Lock object from reads and writes"
+
+    var minimumRequiredArguments: Int { 0 }
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -27,13 +29,16 @@ struct LockTotal: REPLCommand, REPLCurrentBlockCompletable {
     init() {}
 
     func execute(with context: Context) async throws {
+        let object = object ?? context.currentObject
         try await object.setLockNoReadWrite()
     }
 }
 
-struct Unlock: REPLCommand, REPLCurrentBlockCompletable {
+struct Unlock: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     static let name = ["unlock"]
     static let summary = "Unlock object"
+
+    var minimumRequiredArguments: Int { 0 }
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -41,13 +46,16 @@ struct Unlock: REPLCommand, REPLCurrentBlockCompletable {
     init() {}
 
     func execute(with context: Context) async throws {
+        let object = object ?? context.currentObject
         try await object.unlock()
     }
 }
 
-struct LockNoWrite: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["lock-no-write", "lock"]
+struct LockNoWrite: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
+    static let name = ["lock", "lock-readonly", "lock-no-write"]
     static let summary = "Lock object from writes"
+
+    var minimumRequiredArguments: Int { 0 }
 
     @REPLCommandArgument
     var object: OcaRoot!
@@ -55,6 +63,7 @@ struct LockNoWrite: REPLCommand, REPLCurrentBlockCompletable {
     init() {}
 
     func execute(with context: Context) async throws {
+        let object = object ?? context.currentObject
         try await object.setLockNoWrite()
     }
 }
