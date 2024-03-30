@@ -23,6 +23,10 @@ protocol REPLOptionalArguments {
     var minimumRequiredArguments: Int { get }
 }
 
+protocol REPLClassSpecificCommand {
+    static var supportedClasses: [OcaClassIdentification] { get }
+}
+
 @propertyWrapper
 class REPLCommandArgument<T>: REPLCommandArgumentMarker {
     var wrappedValue: T?
@@ -66,14 +70,32 @@ struct Help: REPLCommand {
     init() {}
 
     func execute(with context: Context) async throws {
-        for command in REPLCommandRegistry.shared.replCanonicalCommands.sorted() {
-            let summary = REPLCommandRegistry.shared.replCommands[command]!.summary
+        let registry: REPLCommandRegistry = .shared
+        for command in registry.replCanonicalCommands.map({ registry.replCommands[$0]! })
+            .filter({ $0.canExecute(with: context) })
+            .sorted(by: { $1.name[0] > $0.name[0] })
+        {
             context
-                .print("  \(command.padding(toLength: 21, withPad: " ", startingAt: 0)) \(summary)")
+                .print(
+                    "  \(command.name[0].padding(toLength: 21, withPad: " ", startingAt: 0)) \(command.summary)"
+                )
         }
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+extension REPLCommand {
+    static func canExecute(with context: Context) -> Bool {
+        if let type = self as? REPLClassSpecificCommand.Type {
+            return type.supportedClasses.contains(where: { supportedClass in
+                Swift.type(of: context.currentObject).classIdentification
+                    .isSubclass(of: supportedClass)
+            })
+        } else {
+            return true
+        }
+    }
 }
 
 final class REPLCommandRegistry {
@@ -112,6 +134,10 @@ final class REPLCommandRegistry {
         precondition(arguments.count > 0)
         guard let type = replCommands[arguments[0]] else {
             throw Ocp1Error.status(.parameterError)
+        }
+
+        guard type.canExecute(with: context) else {
+            throw Ocp1Error.objectClassMismatch
         }
 
         arguments.removeFirst()

@@ -110,9 +110,12 @@ struct PopPath: REPLCommand, REPLCurrentBlockCompletable {
     }
 }
 
-struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
+struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
     static let name = ["list", "ls"]
     static let summary = "Lists action objects in block"
+    static var supportedClasses: [OcaClassIdentification] { [OcaBlock.classIdentification] }
 
     var minimumRequiredArguments: Int { 0 }
 
