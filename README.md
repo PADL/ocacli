@@ -19,6 +19,8 @@ ocacli
   get                   Retrieve a property
   help                  Display this help command
   list                  Lists action objects in block
+  lock                  Lock object from writes
+  lock-total            Lock object from reads and writes
   popd                  Remove object from stack
   pushd                 Add current path to top of stack
   pwd                   Print current object path
@@ -28,6 +30,7 @@ ocacli
   show                  Show object properties
   statistics            Show connection statistics
   subscribe             Add a property event subscription
+  unlock                Unlock object
   unsubscribe           Remove a property event subscription
   up                    Change to parent object path
   watch                 Monitor property events
