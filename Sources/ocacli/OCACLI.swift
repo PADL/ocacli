@@ -69,6 +69,8 @@ final class OCACLI: Command {
         commands.register(Exit.self)
         commands.register(Flags.self)
         commands.register(Get.self)
+        commands.register(GetSinkConnector.self)
+        commands.register(GetSourceConnector.self)
         commands.register(List.self)
         commands.register(LockNoReadWrite.self)
         commands.register(LockNoWrite.self)
