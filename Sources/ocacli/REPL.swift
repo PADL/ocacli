@@ -163,10 +163,14 @@ final class REPLCommandRegistry {
                 value.wrappedValue = argumentValue
             } else if let value = child.value as? REPLCommandArgument<Bool> {
                 value.wrappedValue = NSString(string: argumentValue).boolValue
-            } else if let value = child.value as? REPLCommandArgument<any FixedWidthInteger> {
+            } else if let value = child.value as? REPLCommandArgument<Int> {
                 value.wrappedValue = Int(fromString: argumentValue)
-            } else if let value = child.value as? REPLCommandArgument<OcaFloat32> {
-                value.wrappedValue = OcaFloat32(fromString: argumentValue)
+            } else if let value = child.value as? REPLCommandArgument<UInt> {
+                value.wrappedValue = UInt(fromString: argumentValue)
+            } else if let value = child.value as? REPLCommandArgument<Float> {
+                value.wrappedValue = Float(fromString: argumentValue)
+            } else if let value = child.value as? REPLCommandArgument<Double> {
+                value.wrappedValue = Double(fromString: argumentValue)
             } else if let value = child.value as? REPLCommandArgument<OcaRoot> {
                 value.wrappedValue = try await context.resolve(rolePath: argumentValue)
             } else {
