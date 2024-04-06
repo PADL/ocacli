@@ -18,7 +18,7 @@ import Foundation
 import SwiftOCA
 
 struct Flags: REPLCommand {
-    static let name = ["flags"]
+    static let name = ["get-flags"]
     static let summary = "Show enabled flags"
 
     init() {}
