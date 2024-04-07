@@ -89,6 +89,7 @@ final class OCACLI: Command {
         commands.register(PrintWorkingPath.self)
         commands.register(PushPath.self)
         commands.register(PopPath.self)
+        commands.register(ResetTimeSource.self)
         commands.register(Resolve.self)
         commands.register(SetFlag.self)
         commands.register(Set.self)

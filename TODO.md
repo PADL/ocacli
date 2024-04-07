@@ -17,13 +17,11 @@
     - store-current-param-set
     - find
     - find-recursive
-* OcaTimeSource
-    - reset
 * OcaDeviceManager
     - apply-patch
     - set-reset-key
     - clear-reset-cause
-* OcaSecuriyManager
+* OcaSecurityManager
     - enable-control-security
     - disable-control-security
     - change-psk
