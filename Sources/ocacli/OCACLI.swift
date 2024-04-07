@@ -64,6 +64,7 @@ final class OCACLI: Command {
         commands.register(ClearFlag.self)
         commands.register(Connect.self)
         commands.register(ConnectionInfo.self)
+        commands.register(ConstructActionObject.self)
         commands.register(DeleteActionObject.self)
         commands.register(DeleteMember.self)
         commands.register(DeleteInputPort.self)

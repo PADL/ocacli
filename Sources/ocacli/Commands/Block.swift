@@ -17,6 +17,27 @@
 import Foundation
 import SwiftOCA
 
+struct ConstructActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["construct-action-object"]
+    static let summary = "Construct action object using a factory"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var factory: OcaRoot!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        _ = try await block.constructActionObject(factory: factory.objectNumber)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
 struct DeleteActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
     static let name = ["delete-action-object"]
     static let summary = "Delete block action object"
