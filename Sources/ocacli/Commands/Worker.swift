@@ -156,3 +156,195 @@ struct DeleteOutputPort: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+struct GetInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["get-input-clock-map-entry"]
+    static let summary = "Get input port clock map entry"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaWorker.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        let port: OcaPortClockMapEntry = try await worker
+            .get(portID: OcaPortID(mode: .input, index: id))
+        context.print(port)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct GetOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["get-output-clock-map-entry"]
+    static let summary = "Get output port clock map entry"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaWorker.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        let port: OcaPortClockMapEntry = try await worker
+            .get(portID: OcaPortID(mode: .output, index: id))
+        context.print(port)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct SetInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand, REPLOptionalArguments
+{
+    var minimumRequiredArguments: Int { 2 }
+
+    static let name = ["set-input-clock-map-entry"]
+    static let summary = "Set input port clock map entry"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaWorker.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    @REPLCommandArgument
+    var clock: OcaRoot!
+
+    @REPLCommandArgument
+    var srcTypeString: String!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        let srcType: OcaSamplingRateConverterType
+        if let srcTypeString {
+            guard let _srcType = OcaSamplingRateConverterType
+                .value(for: srcTypeString) as! OcaSamplingRateConverterType?
+            else {
+                throw Ocp1Error.status(.parameterOutOfRange)
+            }
+            srcType = _srcType
+        } else {
+            srcType = .none
+        }
+        try await worker.set(
+            portID: OcaPortID(mode: .input, index: id),
+            portClockMapEntry: OcaPortClockMapEntry(clockONo: clock.objectNumber, srcType: srcType)
+        )
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct SetOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand, REPLOptionalArguments
+{
+    var minimumRequiredArguments: Int { 2 }
+
+    static let name = ["set-output-clock-map-entry"]
+    static let summary = "Set output port clock map entry"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaWorker.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    @REPLCommandArgument
+    var clock: OcaRoot!
+
+    @REPLCommandArgument
+    var srcTypeString: String!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        let srcType: OcaSamplingRateConverterType
+        if let srcTypeString {
+            guard let _srcType = OcaSamplingRateConverterType
+                .value(for: srcTypeString) as! OcaSamplingRateConverterType?
+            else {
+                throw Ocp1Error.status(.parameterOutOfRange)
+            }
+            srcType = _srcType
+        } else {
+            srcType = .none
+        }
+        try await worker.set(
+            portID: OcaPortID(mode: .output, index: id),
+            portClockMapEntry: OcaPortClockMapEntry(clockONo: clock.objectNumber, srcType: srcType)
+        )
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct DeleteInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["delete-input-clock-map-entry"]
+    static let summary = "Delete input port clock map entry"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaWorker.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        try await worker.delete(portID: OcaPortID(mode: .input, index: id))
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct DeleteOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["delete-output-clock-map-entry"]
+    static let summary = "Delete output port clock map entry"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaWorker.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        try await worker.delete(portID: OcaPortID(mode: .output, index: id))
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

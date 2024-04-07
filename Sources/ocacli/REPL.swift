@@ -77,7 +77,7 @@ struct Help: REPLCommand {
         {
             context
                 .print(
-                    "  \(command.name[0].padding(toLength: 21, withPad: " ", startingAt: 0)) \(command.summary)"
+                    "  \(command.name[0].padding(toLength: 32, withPad: " ", startingAt: 0)) \(command.summary)"
                 )
         }
     }
@@ -332,7 +332,7 @@ extension OcaObjectIdentification: REPLStringInitializable {
     }
 }
 
-private extension CaseIterable {
+extension CaseIterable {
     static func value(for string: String) -> Any? {
         for aCase in allCases {
             if String(describing: aCase) == string {
