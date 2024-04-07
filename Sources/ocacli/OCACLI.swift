@@ -58,11 +58,13 @@ final class OCACLI: Command {
     private let commandDidComplete = DispatchSemaphore(value: 0)
 
     init() {
+        commands.register(AddGroupMember.self)
         commands.register(ChangePath.self)
         commands.register(ClearCache.self)
         commands.register(ClearFlag.self)
         commands.register(Connect.self)
         commands.register(ConnectionInfo.self)
+        commands.register(DeleteGroupMember.self)
         commands.register(DeleteInputPort.self)
         commands.register(DeleteOutputPort.self)
         commands.register(DeleteInputPortClockMapEntry.self)
