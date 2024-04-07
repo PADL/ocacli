@@ -17,8 +17,8 @@
 import Foundation
 import SwiftOCA
 
-struct AddGroupMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-    static let name = ["add-group-member"]
+struct AddMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["add-member"]
     static let summary = "Add group member"
 
     static var supportedClasses: [OcaClassIdentification] {
@@ -38,8 +38,8 @@ struct AddGroupMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecif
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-struct DeleteGroupMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-    static let name = ["delete-group-member"]
+struct DeleteMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["delete-member"]
     static let summary = "Delete group member"
 
     static var supportedClasses: [OcaClassIdentification] {
