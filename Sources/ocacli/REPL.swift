@@ -63,6 +63,20 @@ extension REPLCurrentBlockCompletable {
     }
 }
 
+struct Exit: REPLCommand {
+    static let name = ["exit", "quit"]
+    static let summary = "Exit the OCA CLI"
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        await context.finish()
+        exit(0)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
 struct Help: REPLCommand {
     static let name = ["help", "?"]
     static let summary = "Display this help command"

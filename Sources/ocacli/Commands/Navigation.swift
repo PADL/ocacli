@@ -17,20 +17,6 @@
 import Foundation
 import SwiftOCA
 
-struct Exit: REPLCommand {
-    static let name = ["exit", "quit"]
-    static let summary = "Exit the OCA CLI"
-
-    init() {}
-
-    func execute(with context: Context) async throws {
-        await context.finish()
-        exit(0)
-    }
-
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
-}
-
 struct ConnectionInfo: REPLCommand {
     static let name = ["connection-info", "conn"]
     static let summary = "Display connection status"
