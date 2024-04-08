@@ -60,6 +60,7 @@ final class OCACLI: Command {
     init() {
         commands.register(AddMember.self)
         commands.register(AddPreSharedKey.self)
+        commands.register(AddSignalPath.self)
         commands.register(ChangePreSharedKey.self)
         commands.register(ChangePath.self)
         commands.register(ClearCache.self)
@@ -74,6 +75,7 @@ final class OCACLI: Command {
         commands.register(DeleteInputPortClockMapEntry.self)
         commands.register(DeleteOutputPortClockMapEntry.self)
         commands.register(DeletePreSharedKey.self)
+        commands.register(DeleteSignalPath.self)
         commands.register(DisableControlSecurity.self)
         commands.register(DeviceInfo.self)
         commands.register(Disconnect.self)

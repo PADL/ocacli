@@ -58,3 +58,70 @@ struct DeleteActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+struct AddSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["add-signal-path"]
+    static let summary = "Add a signal path to a block"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var source: OcaRoot!
+
+    @REPLCommandArgument
+    var sourceID: Int!
+
+    @REPLCommandArgument
+    var sink: OcaRoot!
+
+    @REPLCommandArgument
+    var sinkID: Int!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        guard let sourceID = UInt16(exactly: sourceID),
+              let sinkID = UInt16(exactly: sinkID)
+        else { throw Ocp1Error.status(.parameterOutOfRange) }
+        let sourcePort = OcaPort(
+            owner: source.objectNumber,
+            id: OcaPortID(mode: .output, index: sourceID),
+            name: ""
+        )
+        let sinkPort = OcaPort(
+            owner: sink.objectNumber,
+            id: OcaPortID(mode: .input, index: sinkID),
+            name: ""
+        )
+        let signalPath = OcaSignalPath(sourcePort: sourcePort, sinkPort: sinkPort)
+        let id = try await block.add(signalPath: signalPath)
+        context.print(id)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct DeleteSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["delete-signal-path"]
+    static let summary = "Delete a signal path to a block"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    @REPLCommandArgument
+    var id: Int!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+        try await block.delete(signalPath: id)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
