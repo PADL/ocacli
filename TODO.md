@@ -11,8 +11,6 @@
 ## Commands to implement
 
 * OcaBlock
-    - add-signal-path
-    - delete-signal-path
     - apply-param-set
     - store-current-param-set
     - find

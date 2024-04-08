@@ -86,6 +86,7 @@ final class OCACLI: Command {
         commands.register(Get.self)
         commands.register(GetInputPortName.self)
         commands.register(GetOutputPortName.self)
+        commands.register(GetSignalPathRecursive.self)
         commands.register(SetInputPortClockMapEntry.self)
         commands.register(SetOutputPortClockMapEntry.self)
         commands.register(GetSinkConnector.self)

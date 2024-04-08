@@ -125,3 +125,22 @@ struct DeleteSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["get-signal-path-recursive"]
+    static let summary = "Get recursive signal paths"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        let signalPaths: [OcaUint16: OcaSignalPath] = try await block.getRecursive()
+        context.print(signalPaths)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
