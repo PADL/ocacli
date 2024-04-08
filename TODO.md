@@ -21,12 +21,6 @@
     - apply-patch
     - set-reset-key
     - clear-reset-cause
-* OcaSecurityManager
-    - enable-control-security
-    - disable-control-security
-    - change-psk
-    - add-psk
-    - delete-psk
 * OcaFirmwareManager
     - update, update-active
     - update-passive
