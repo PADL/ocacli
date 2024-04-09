@@ -97,6 +97,9 @@ extension OcaRoot {
         context: Context,
         keyPath: PartialKeyPath<OcaRoot>
     ) async throws -> String? {
+        if String(describing: keyPath) == "\\OcaRoot._objectNumber" {
+            return String(format: "0x%x", objectNumber)
+        }
         let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
 
         return try? await subject.getValue(
