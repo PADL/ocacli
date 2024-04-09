@@ -297,7 +297,6 @@ func replValue(
     {
         return caseIterableValue
     } else if let fixedIntegerType = type as? any FixedWidthInteger.Type {
-        let fixedIntegerValue: Int
         var exactFixedIntegerValue: (any FixedWidthInteger)?
 
         if stringValue.lowercased().hasPrefix("0x") {
