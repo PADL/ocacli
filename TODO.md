@@ -43,4 +43,3 @@
     - control-connector
     - add-sink
     - add-source
-    - get-connector-status

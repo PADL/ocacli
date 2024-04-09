@@ -80,3 +80,35 @@ struct GetSinkConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCom
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+struct GetConnectorStatus: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["get-connector-status"]
+    static let summary = "Get media transport network connector status"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaMediaTransportNetwork.classIdentification]
+    }
+
+    var minimumRequiredArguments: Int { 0 }
+
+    @REPLCommandArgument
+    var id: Int?
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
+        if let id {
+            guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+            let connectorStatus = try await mediaTransportNetwork.getConnectorStatus(id)
+            context.print("\(connectorStatus)")
+        } else {
+            let connectorStatuses = try await mediaTransportNetwork.getConnectorsStatuses()
+            context.print("\(connectorStatuses)")
+        }
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

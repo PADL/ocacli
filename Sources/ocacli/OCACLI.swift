@@ -90,6 +90,7 @@ final class OCACLI: Command {
         commands.register(FindActionObjectsByRoleRecursive.self)
         commands.register(Flags.self)
         commands.register(Get.self)
+        commands.register(GetConnectorStatus.self)
         commands.register(GetInputPortName.self)
         commands.register(GetOutputPortName.self)
         commands.register(GetSignalPathRecursive.self)
