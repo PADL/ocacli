@@ -92,7 +92,6 @@ struct SetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     init() {}
 
     func execute(with context: Context) async throws {
-        let worker = context.currentObject as! OcaWorker
         guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
         if let worker = context.currentObject as? OcaWorker {
             try await worker.set(portID: OcaPortID(mode: .input, index: id), name: name)
@@ -126,7 +125,6 @@ struct SetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     init() {}
 
     func execute(with context: Context) async throws {
-        let worker = context.currentObject as! OcaWorker
         guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
         if let worker = context.currentObject as? OcaWorker {
             try await worker.set(portID: OcaPortID(mode: .output, index: id), name: name)
