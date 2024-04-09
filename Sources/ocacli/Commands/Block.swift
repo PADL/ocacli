@@ -151,41 +151,26 @@ private extension OcaObjectSearchResultFlags {
     }
 }
 
-struct FindActionObjects: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-    static let name = ["find", "find-action-objects-by-role"]
-    static let summary = "Find action objects by search string"
+private protocol _FindActionObjects {
+    func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult]
+}
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaBlock.classIdentification]
-    }
-
-    init() {}
-
-    @REPLCommandArgument
-    var searchName: String!
-
-    func execute(with context: Context) async throws {
-        let block = context.currentObject as! OcaBlock
-        let searchResults = try await block.find(
-            actionObjectsByRole: searchName,
-            nameComparisonType: .containsCaseInsensitive,
-            resultFlags: .replSearchResultFlags
-        )
+private extension _FindActionObjects {
+    func execute(_ searchName: String, in block: OcaBlock, with context: Context) async throws {
+        let searchResults = try await find(searchName, in: block)
         for searchResult in searchResults.filter({ !($0.role?.isEmpty ?? true) })
             .sorted(by: { $1.role! > $0.role! })
         {
             context.print(searchResult.role!)
         }
     }
-
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-struct FindActionObjectsRecursive: REPLCommand, REPLCurrentBlockCompletable,
-    REPLClassSpecificCommand
+struct FindActionObjectsByRole: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand,
+    _FindActionObjects
 {
-    static let name = ["find-recursive", "find-action-objects-by-role-recursive"]
-    static let summary = "Recursively find action objects by search string"
+    static let name = ["find", "find-action-objects-by-role"]
+    static let summary = "Find action objects by role search string"
 
     static var supportedClasses: [OcaClassIdentification] {
         [OcaBlock.classIdentification]
@@ -196,13 +181,29 @@ struct FindActionObjectsRecursive: REPLCommand, REPLCurrentBlockCompletable,
     @REPLCommandArgument
     var searchName: String!
 
-    func execute(with context: Context) async throws {
-        let block = context.currentObject as! OcaBlock
-        let searchResults = try await block.findRecursive(
+    func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult] {
+        try await block.find(
             actionObjectsByRole: searchName,
             nameComparisonType: .containsCaseInsensitive,
             resultFlags: .replSearchResultFlags
         )
+    }
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        try await execute(searchName, in: block, with: context)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+private protocol _FindActionObjectsRecursive {
+    func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult]
+}
+
+private extension _FindActionObjectsRecursive {
+    func execute(_ searchName: String, in block: OcaBlock, with context: Context) async throws {
+        let searchResults = try await find(searchName, in: block)
         for searchResult in searchResults {
             do {
                 guard let object = await context.connection.resolve(object: OcaObjectIdentification(
@@ -224,6 +225,66 @@ struct FindActionObjectsRecursive: REPLCommand, REPLCurrentBlockCompletable,
                 context.print(searchResult.oNo!.oNoString)
             }
         }
+    }
+}
+
+struct FindActionObjectsByRoleRecursive: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand, _FindActionObjectsRecursive
+{
+    static let name = ["find-recursive", "find-action-objects-by-role-recursive"]
+    static let summary = "Recursively find action objects by role search string"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    init() {}
+
+    @REPLCommandArgument
+    var searchName: String!
+
+    func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult] {
+        try await block.findRecursive(
+            actionObjectsByRole: searchName,
+            nameComparisonType: .containsCaseInsensitive,
+            resultFlags: .replSearchResultFlags
+        )
+    }
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        try await execute(searchName, in: block, with: context)
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct FindActionObjectsByLabelRecursive: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand, _FindActionObjectsRecursive
+{
+    static let name = ["find-label-recursive", "find-action-objects-by-label-recursive"]
+    static let summary = "Recursively find action objects by label search string"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    init() {}
+
+    @REPLCommandArgument
+    var searchName: String!
+
+    func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult] {
+        try await block.findRecursive(
+            actionObjectsByLabel: searchName,
+            nameComparisonType: .containsCaseInsensitive,
+            resultFlags: .replSearchResultFlags
+        )
+    }
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        try await execute(searchName, in: block, with: context)
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
