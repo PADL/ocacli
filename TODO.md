@@ -11,10 +11,8 @@
 ## Commands to implement
 
 * OcaBlock
-    - apply-param-set
-    - store-current-param-set
-    - find
-    - find-recursive
+    - apply-param-set (deprecated)
+    - store-current-param-set (deprecated)
 * OcaDeviceManager
     - apply-patch
     - set-reset-key

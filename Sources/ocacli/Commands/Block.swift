@@ -144,3 +144,87 @@ struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLCla
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
+
+private extension OcaObjectSearchResultFlags {
+    static var replSearchResultFlags: Self {
+        [.oNo, .classIdentification, .containerPath, .role]
+    }
+}
+
+struct FindActionObjects: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+    static let name = ["find", "find-action-objects-by-role"]
+    static let summary = "Find action objects by search string"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    init() {}
+
+    @REPLCommandArgument
+    var searchName: String!
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        let searchResults = try await block.find(
+            actionObjectsByRole: searchName,
+            nameComparisonType: .containsCaseInsensitive,
+            resultFlags: .replSearchResultFlags
+        )
+        for searchResult in searchResults.filter({ !($0.role?.isEmpty ?? true) })
+            .sorted(by: { $1.role! > $0.role! })
+        {
+            context.print(searchResult.role!)
+        }
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct FindActionObjectsRecursive: REPLCommand, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["find-recursive", "find-action-objects-by-role-recursive"]
+    static let summary = "Recursively find action objects by search string"
+
+    static var supportedClasses: [OcaClassIdentification] {
+        [OcaBlock.classIdentification]
+    }
+
+    init() {}
+
+    @REPLCommandArgument
+    var searchName: String!
+
+    func execute(with context: Context) async throws {
+        let block = context.currentObject as! OcaBlock
+        let searchResults = try await block.findRecursive(
+            actionObjectsByRole: searchName,
+            nameComparisonType: .containsCaseInsensitive,
+            resultFlags: .replSearchResultFlags
+        )
+        for searchResult in searchResults {
+            do {
+                guard let object = await context.connection.resolve(object: OcaObjectIdentification(
+                    oNo: searchResult.oNo!,
+                    classIdentification: searchResult.classIdentification!
+                )) else {
+                    throw Ocp1Error.status(.processingFailed)
+                }
+                object.cacheRole(searchResult.role!)
+
+                let rolePath = try await (searchResult.containerPath! + [searchResult.oNo!])
+                    .asyncMap {
+                        let object = try await context.connection.resolve(objectOfUnknownClass: $0)
+                        guard let object else { throw Ocp1Error.status(.processingFailed) }
+                        return try await object.getRole()
+                    }
+                context.print(pathComponentsToPathString(rolePath))
+            } catch {
+                context.print(searchResult.oNo!.oNoString)
+            }
+        }
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

@@ -82,6 +82,8 @@ final class OCACLI: Command {
         commands.register(Dump.self)
         commands.register(EnableControlSecurity.self)
         commands.register(Exit.self)
+        commands.register(FindActionObjects.self)
+        commands.register(FindActionObjectsRecursive.self)
         commands.register(Flags.self)
         commands.register(Get.self)
         commands.register(GetInputPortName.self)
