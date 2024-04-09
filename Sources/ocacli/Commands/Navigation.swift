@@ -134,6 +134,34 @@ struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
     }
 }
 
+struct ListObjectNumbers: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+    REPLClassSpecificCommand
+{
+    static let name = ["list-object-numbers"]
+    static let summary = "Lists action objects in block by object number"
+    static var supportedClasses: [OcaClassIdentification] { [OcaBlock.classIdentification] }
+
+    var minimumRequiredArguments: Int { 0 }
+
+    @REPLCommandArgument
+    var object: OcaRoot!
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        guard let object = (object ?? context.currentObject) as? OcaBlock else {
+            return
+        }
+
+        for actionObject in try await object
+            .getActionObjects(flags: context.contextFlags.cachedPropertyResolutionFlags)
+            .sorted(by: { $1.oNo > $0.oNo })
+        {
+            context.print(actionObject.oNo.oNoString)
+        }
+    }
+}
+
 struct Resolve: REPLCommand {
     static let name = ["resolve"]
     static let summary = "Resolves an object number to a name"

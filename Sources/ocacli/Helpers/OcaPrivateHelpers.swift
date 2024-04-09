@@ -29,6 +29,14 @@ extension OcaOwnable {
     }
 }
 
+extension OcaBlock {
+    func getActionObjects(flags: OcaPropertyResolutionFlags) async throws
+        -> [OcaObjectIdentification]
+    {
+        try await $actionObjects._getValue(self, flags: flags)
+    }
+}
+
 extension OcaRoot {
     func cacheRole(_ role: String) {
         _set(role: role)

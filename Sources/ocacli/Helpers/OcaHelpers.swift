@@ -57,7 +57,7 @@ extension OcaRoot {
 
 extension OcaONo {
     var oNoString: String {
-        "<\(self)>"
+        "<\(String(format: "0x%x", self))>"
     }
 
     init?(oNoString: String) {
