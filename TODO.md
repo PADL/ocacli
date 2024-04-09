@@ -35,7 +35,6 @@
 * OcaApplicationNetwork
     - control
 * OcaMediaTransportNetwork
-    - set-port-name etc
     - delete-connector
     - set-connector
     - set-sink-connector

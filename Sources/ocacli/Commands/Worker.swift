@@ -22,7 +22,7 @@ struct GetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     static let summary = "Get input port name"
 
     static var supportedClasses: [OcaClassIdentification] {
-        [OcaWorker.classIdentification]
+        [OcaWorker.classIdentification, OcaMediaTransportNetwork.classIdentification]
     }
 
     @REPLCommandArgument
@@ -31,9 +31,15 @@ struct GetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     init() {}
 
     func execute(with context: Context) async throws {
-        let worker = context.currentObject as! OcaWorker
         guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-        let port: OcaString = try await worker.get(portID: OcaPortID(mode: .input, index: id))
+        let port: String
+        if let worker = context.currentObject as? OcaWorker {
+            port = try await worker.get(portID: OcaPortID(mode: .input, index: id))
+        } else if let mediaTransportNetwork = context.currentObject as? OcaMediaTransportNetwork {
+            port = try await mediaTransportNetwork.get(portID: OcaPortID(mode: .input, index: id))
+        } else {
+            throw Ocp1Error.objectClassMismatch
+        }
         context.print(port)
     }
 
@@ -45,7 +51,7 @@ struct GetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     static let summary = "Get output port name"
 
     static var supportedClasses: [OcaClassIdentification] {
-        [OcaWorker.classIdentification]
+        [OcaWorker.classIdentification, OcaMediaTransportNetwork.classIdentification]
     }
 
     @REPLCommandArgument
@@ -54,9 +60,15 @@ struct GetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     init() {}
 
     func execute(with context: Context) async throws {
-        let worker = context.currentObject as! OcaWorker
         guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-        let port: OcaString = try await worker.get(portID: OcaPortID(mode: .output, index: id))
+        let port: String
+        if let worker = context.currentObject as? OcaWorker {
+            port = try await worker.get(portID: OcaPortID(mode: .output, index: id))
+        } else if let mediaTransportNetwork = context.currentObject as? OcaMediaTransportNetwork {
+            port = try await mediaTransportNetwork.get(portID: OcaPortID(mode: .output, index: id))
+        } else {
+            throw Ocp1Error.objectClassMismatch
+        }
         context.print(port)
     }
 
@@ -68,7 +80,7 @@ struct SetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     static let summary = "Set input port name"
 
     static var supportedClasses: [OcaClassIdentification] {
-        [OcaWorker.classIdentification]
+        [OcaWorker.classIdentification, OcaMediaTransportNetwork.classIdentification]
     }
 
     @REPLCommandArgument
@@ -82,7 +94,16 @@ struct SetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     func execute(with context: Context) async throws {
         let worker = context.currentObject as! OcaWorker
         guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-        try await worker.set(portID: OcaPortID(mode: .input, index: id), name: name)
+        if let worker = context.currentObject as? OcaWorker {
+            try await worker.set(portID: OcaPortID(mode: .input, index: id), name: name)
+        } else if let mediaTransportNetwork = context.currentObject as? OcaMediaTransportNetwork {
+            try await mediaTransportNetwork.set(
+                portID: OcaPortID(mode: .input, index: id),
+                name: name
+            )
+        } else {
+            throw Ocp1Error.objectClassMismatch
+        }
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
@@ -93,7 +114,7 @@ struct SetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     static let summary = "Set output port name"
 
     static var supportedClasses: [OcaClassIdentification] {
-        [OcaWorker.classIdentification]
+        [OcaWorker.classIdentification, OcaMediaTransportNetwork.classIdentification]
     }
 
     @REPLCommandArgument
@@ -107,7 +128,16 @@ struct SetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     func execute(with context: Context) async throws {
         let worker = context.currentObject as! OcaWorker
         guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-        try await worker.set(portID: OcaPortID(mode: .output, index: id), name: name)
+        if let worker = context.currentObject as? OcaWorker {
+            try await worker.set(portID: OcaPortID(mode: .output, index: id), name: name)
+        } else if let mediaTransportNetwork = context.currentObject as? OcaMediaTransportNetwork {
+            try await mediaTransportNetwork.set(
+                portID: OcaPortID(mode: .output, index: id),
+                name: name
+            )
+        } else {
+            throw Ocp1Error.objectClassMismatch
+        }
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
