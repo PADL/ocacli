@@ -120,7 +120,7 @@ struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
         await withTaskGroup(of: String.self, returning: [String].self) { taskGroup in
             for actionObject in actionObjects {
                 taskGroup.addTask {
-                    (try? await actionObject.getRole()) ?? actionObject.objectNumber.oNoString
+                    await (try? actionObject.getRole()) ?? actionObject.objectNumber.oNoString
                 }
             }
             return await taskGroup.collect()
