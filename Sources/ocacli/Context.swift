@@ -350,8 +350,8 @@ final class Context {
         } else {
             let pathComponents = path.pathComponents
 
-            guard let baseObject = (
-                pathComponents.1 ? await connection
+            guard let baseObject = await (
+                pathComponents.1 ? connection
                     .rootBlock : currentObject
             ) as? OcaBlock else {
                 // FIXME: confusing when cd'ing on leaf objects
@@ -474,8 +474,7 @@ struct DumpSparseRolePathCache: REPLCommand {
     init() {}
 
     func execute(with context: Context) async throws {
-        let worker = context.currentObject as! OcaWorker
-        for item in context.sparseRolePathCache {
+        context.sparseRolePathCache.forEach { item in
             context.print("\(item.key): \(item.value)")
         }
     }
