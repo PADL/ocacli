@@ -296,14 +296,23 @@ func replValue(
               let caseIterableValue = caseIterableValueType.value(for: stringValue)
     {
         return caseIterableValue
-    } else if let fixedIntegerType = type as? any FixedWidthInteger.Type,
-              let fixedIntegerValue = Int(stringValue),
-              let fixedIntegerValue = fixedIntegerType.init(exactly: fixedIntegerValue)
-    {
-        return fixedIntegerValue
-    } else {
-        throw Ocp1Error.status(.badFormat)
+    } else if let fixedIntegerType = type as? any FixedWidthInteger.Type {
+        let fixedIntegerValue: Int
+        var exactFixedIntegerValue: (any FixedWidthInteger)?
+
+        if stringValue.lowercased().hasPrefix("0x") {
+            if let fixedIntegerValue = UInt(stringValue.dropFirst(2)) {
+                exactFixedIntegerValue = fixedIntegerType.init(exactly: fixedIntegerValue)
+            }
+        } else {
+            if let fixedIntegerValue = Int(stringValue) {
+                exactFixedIntegerValue = fixedIntegerType.init(exactly: fixedIntegerValue)
+            }
+        }
+
+        if let exactFixedIntegerValue { return exactFixedIntegerValue }
     }
+    throw Ocp1Error.status(.badFormat)
 }
 
 protocol REPLStringInitializable: Sendable {
