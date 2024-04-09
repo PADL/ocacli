@@ -80,6 +80,9 @@ final class OCACLI: Command {
         commands.register(DeviceInfo.self)
         commands.register(Disconnect.self)
         commands.register(Dump.self)
+        #if DEBUG
+        commands.register(DumpSparseRolePathCache.self)
+        #endif
         commands.register(EnableControlSecurity.self)
         commands.register(Exit.self)
         commands.register(FindActionObjects.self)

@@ -179,7 +179,7 @@ final class Context {
     private(set) var currentObject: OcaRoot
     private(set) var currentObjectCompletions: [String]? = []
     private var currentObjectPath: OcaNamePath? = [""]
-    private var sparseRolePathCache: [OcaNamePath: OcaRoot] = [:]
+    fileprivate var sparseRolePathCache: [OcaNamePath: OcaRoot] = [:]
 
     init(
         deviceEndpointInfo: DeviceEndpointInfo,
@@ -465,3 +465,21 @@ final class Context {
         }
     }
 }
+
+#if DEBUG
+struct DumpSparseRolePathCache: REPLCommand {
+    static let name = ["dump-sparse-role-path-cache"]
+    static let summary = "Dump spare role path cache"
+
+    init() {}
+
+    func execute(with context: Context) async throws {
+        let worker = context.currentObject as! OcaWorker
+        for item in context.sparseRolePathCache {
+            context.print("\(item.key): \(item.value)")
+        }
+    }
+
+    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+#endif
