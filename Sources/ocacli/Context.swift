@@ -99,13 +99,16 @@ struct ContextFlags: OptionSet {
 enum DeviceEndpointInfo {
     case tcp(String, UInt16)
     case udp(String, UInt16)
+    case path(String, Bool)
 
-    var hostname: String {
+    var hostname: String? {
         switch self {
         case let .tcp(hostname, _):
             return hostname
         case let .udp(hostname, _):
             return hostname
+        case .path:
+            return nil
         }
     }
 
@@ -115,10 +118,43 @@ enum DeviceEndpointInfo {
             return port
         case let .udp(_, port):
             return port
+        case .path:
+            return 0
+        }
+    }
+
+    var path: String? {
+        switch self {
+        case let .path(path, _):
+            return path
+        default:
+            return nil
+        }
+    }
+
+    var datagram: Bool {
+        switch self {
+        case .tcp:
+            return false
+        case .udp:
+            return true
+        case .path(_, let datagram):
+            return datagram
         }
     }
 
     func getConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
+        switch self {
+        case .tcp:
+            fallthrough
+        case .udp:
+            return try await getRemoteConnection(options: options)
+        case .path:
+            return try await getLocalConnection(options: options)
+        }
+    }
+
+    private func getRemoteConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
         var connection: Ocp1Connection?
         let host = Host(name: hostname)
         var savedError: Error?
@@ -164,6 +200,19 @@ enum DeviceEndpointInfo {
         } else {
             throw Ocp1Error.serviceResolutionFailed
         }
+    }
+
+    private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
+        let connection: Ocp1Connection
+
+        if datagram {
+            connection = try await Ocp1IORingDatagramConnection(path: path!, options: options)
+        } else {
+            connection = try await Ocp1IORingStreamConnection(path: path!, options: options)
+        }
+
+        try await connection.connect()
+        return connection
     }
 }
 

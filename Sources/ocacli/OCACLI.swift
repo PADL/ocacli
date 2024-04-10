@@ -29,7 +29,9 @@ final class OCACLI: Command {
     @CommandArgument(short: "p", long: "port", description: "Device port")
     private var port: Int?
     @CommandOption(short: "U", long: "udp", description: "Use datagram sockets")
-    private var udp: Bool
+    private var datagram: Bool
+    @CommandArgument(short: "P", long: "path", description: "Domain socket path")
+    private var path: String?
     @CommandOption(
         short: "r",
         long: "resolve-device-tree",
@@ -149,7 +151,7 @@ final class OCACLI: Command {
     private func initContext() async throws -> Context {
         var logger = Logger(label: "com.padl.ocacli")
 
-        guard let hostname, let port, !help else {
+        guard ((hostname != nil && port != nil) || path != nil), !help else {
             usage()
         }
 
@@ -173,14 +175,23 @@ final class OCACLI: Command {
             contextFlags.insert([.cacheProperties, .subscribePropertyEvents])
         }
 
-        guard let port = UInt16(exactly: port) else {
-            throw Ocp1Error.serviceResolutionFailed
+        let _port: UInt16
+
+        if let port {
+            guard let port = UInt16(exactly: port) else {
+                throw Ocp1Error.serviceResolutionFailed
+            }
+            _port = port
+        } else {
+            _port = 0
         }
 
-        if udp {
-            deviceEndpointInfo = DeviceEndpointInfo.udp(hostname, port)
+        if let path {
+            deviceEndpointInfo = DeviceEndpointInfo.path(path, datagram)
+        } else if datagram {
+            deviceEndpointInfo = DeviceEndpointInfo.udp(hostname!, _port)
         } else {
-            deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname, port)
+            deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname!, _port)
         }
         return try await Context(
             deviceEndpointInfo: deviceEndpointInfo,
