@@ -28,10 +28,16 @@ final class OCACLI: Command {
     private var commandsToExecute: [String]
     @CommandArgument(short: "p", long: "port", description: "Device port")
     private var port: Int?
-    @CommandOption(short: "U", long: "udp", description: "Use datagram sockets")
+    @CommandOption(short: "U", long: "udp", description: "Use UDP instead of TCP")
     private var datagram: Bool
     @CommandArgument(short: "P", long: "path", description: "Domain socket path")
     private var path: String?
+    @CommandOption(
+        short: "a",
+        long: "automatic-reconnect",
+        description: "Attempt to reconnect on disconnection"
+    )
+    private var automaticReconnect: Bool
     @CommandOption(
         short: "r",
         long: "resolve-device-tree",
@@ -151,7 +157,7 @@ final class OCACLI: Command {
     private func initContext() async throws -> Context {
         var logger = Logger(label: "com.padl.ocacli")
 
-        guard ((hostname != nil && port != nil) || path != nil), !help else {
+        guard (hostname != nil && port != nil) || path != nil, !help else {
             usage()
         }
 
@@ -168,6 +174,9 @@ final class OCACLI: Command {
         ]
         let deviceEndpointInfo: DeviceEndpointInfo
 
+        if automaticReconnect {
+            contextFlags.insert(.automaticReconnect)
+        }
         if resolveDeviceTree {
             contextFlags.insert(.refreshDeviceTreeOnConnection)
         }
@@ -290,6 +299,8 @@ final class OCACLI: Command {
 
     func run() throws {
         LoggingSystem.bootstrap(StreamLogHandler.standardError)
+
+        signal(SIGPIPE, SIG_IGN)
 
         if commandsToExecute.isEmpty {
             try runInteractiveMode()

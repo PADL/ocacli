@@ -138,7 +138,7 @@ enum DeviceEndpointInfo {
             return false
         case .udp:
             return true
-        case .path(_, let datagram):
+        case let .path(_, datagram):
             return datagram
         }
     }
@@ -154,7 +154,9 @@ enum DeviceEndpointInfo {
         }
     }
 
-    private func getRemoteConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
+    private func getRemoteConnection(options: Ocp1ConnectionOptions) async throws
+        -> Ocp1Connection
+    {
         var connection: Ocp1Connection?
         let host = Host(name: hostname)
         var savedError: Error?
