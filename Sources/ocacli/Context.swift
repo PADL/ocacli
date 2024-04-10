@@ -99,7 +99,7 @@ struct ContextFlags: OptionSet {
 enum DeviceEndpointInfo {
     case tcp(String, UInt16)
     case udp(String, UInt16)
-    case path(String, Bool)
+    case path(String)
 
     var hostname: String? {
         switch self {
@@ -125,21 +125,10 @@ enum DeviceEndpointInfo {
 
     var path: String? {
         switch self {
-        case let .path(path, _):
+        case let .path(path):
             return path
         default:
             return nil
-        }
-    }
-
-    var datagram: Bool {
-        switch self {
-        case .tcp:
-            return false
-        case .udp:
-            return true
-        case let .path(_, datagram):
-            return datagram
         }
     }
 
@@ -205,14 +194,7 @@ enum DeviceEndpointInfo {
     }
 
     private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
-        let connection: Ocp1Connection
-
-        if datagram {
-            connection = try await Ocp1IORingDatagramConnection(path: path!, options: options)
-        } else {
-            connection = try await Ocp1IORingStreamConnection(path: path!, options: options)
-        }
-
+        let connection = try await Ocp1TCPConnection(path: path!, options: options)
         try await connection.connect()
         return connection
     }

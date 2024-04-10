@@ -157,7 +157,7 @@ final class OCACLI: Command {
     private func initContext() async throws -> Context {
         var logger = Logger(label: "com.padl.ocacli")
 
-        guard (hostname != nil && port != nil) || path != nil, !help else {
+        guard (hostname != nil && port != nil) || (path != nil && !datagram), !help else {
             usage()
         }
 
@@ -196,7 +196,7 @@ final class OCACLI: Command {
         }
 
         if let path {
-            deviceEndpointInfo = DeviceEndpointInfo.path(path, datagram)
+            deviceEndpointInfo = DeviceEndpointInfo.path(path)
         } else if datagram {
             deviceEndpointInfo = DeviceEndpointInfo.udp(hostname!, _port)
         } else {
