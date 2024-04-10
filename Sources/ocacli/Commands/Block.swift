@@ -138,7 +138,7 @@ struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLCla
 
     func execute(with context: Context) async throws {
         let block = context.currentObject as! OcaBlock
-        let signalPaths: [OcaUint16: OcaSignalPath] = try await block.getRecursive()
+        let signalPaths: [OcaUint16: OcaSignalPath] = try await block.getActionObjectsRecursive()
         context.print(signalPaths)
     }
 
