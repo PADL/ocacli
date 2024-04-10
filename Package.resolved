@@ -19,12 +19,12 @@
       }
     },
     {
-      "identity" : "flyingfox",
+      "identity" : "ioringswift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swhitty/FlyingFox",
+      "location" : "https://github.com/PADL/IORingSwift",
       "state" : {
-        "revision" : "00e4d51c57b4fbe4f011650f2f965d3bea1ba7c1",
-        "version" : "0.13.0"
+        "branch" : "main",
+        "revision" : "ed798fdd5c7170ad9fc7a228403287fd287134bc"
       }
     },
     {
@@ -52,6 +52,15 @@
       "state" : {
         "revision" : "9cfed92b026c524674ed869a4ff2dcfdeedf8a2a",
         "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "swift-async-queue",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dfed/swift-async-queue",
+      "state" : {
+        "revision" : "90c0ac3661a4fae9f7b94f45316046805f5b2478",
+        "version" : "0.5.2"
       }
     },
     {
@@ -91,21 +100,21 @@
       }
     },
     {
+      "identity" : "swift-system",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-system",
+      "state" : {
+        "revision" : "025bcb1165deab2e20d4eaba79967ce73013f496",
+        "version" : "1.2.1"
+      }
+    },
+    {
       "identity" : "swiftoca",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/PADL/SwiftOCA",
       "state" : {
         "branch" : "main",
-        "revision" : "39b7dd700f806e4acba4ebcc4ddeb6aa283c6f40"
-      }
-    },
-    {
-      "identity" : "swiftui-sliders",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/spacenation/swiftui-sliders.git",
-      "state" : {
-        "revision" : "d5a7d856655d5c91f891c2b69d982c30fd5c7bdf",
-        "version" : "2.1.0"
+        "revision" : "77be1ac7b62d8ca45555327e8dfaeac392a1a0f9"
       }
     }
   ],
