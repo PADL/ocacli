@@ -262,7 +262,12 @@ final class OCACLI: Command {
         var continuation: AsyncStream<CommandTokens>.Continuation!
         commandSourceStream = AsyncStream<CommandTokens> {
             let task = Task {
-                self.context = try await self.initContext()
+                do {
+                    self.context = try await self.initContext()
+                } catch {
+                    print(error)
+                    exit(2)
+                }
                 commandDidComplete.signal()
                 for await tokens in commandSourceStream {
                     do {
