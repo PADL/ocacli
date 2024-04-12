@@ -200,7 +200,7 @@ enum DeviceEndpointInfo {
     }
 }
 
-final class Context {
+final class Context: @unchecked Sendable {
     let connection: Ocp1Connection
     private let logger: Logger
 
@@ -476,7 +476,7 @@ final class Context {
         Swift.print(items, separator: " ", terminator: "\n")
     }
 
-    func onPropertyEvent(event: OcaEvent, eventData data: Data) {
+    @Sendable func onPropertyEvent(event: OcaEvent, eventData data: Data) {
         let decoder = Ocp1Decoder()
         guard let propertyID = try? decoder.decode(
             OcaPropertyID.self,
