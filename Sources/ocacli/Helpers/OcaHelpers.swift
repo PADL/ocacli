@@ -48,7 +48,7 @@ extension OcaRoot {
         options: JSONSerialization.WritingOptions
     ) async throws -> Data {
         let jsonResultData = try await JSONSerialization.data(
-            withJSONObject: getJsonValue(flags: context.contextFlags.propertyResolutionFlags),
+            withJSONObject: getJsonValue(flags: .returnCachedValue),
             options: options
         )
         return jsonResultData
