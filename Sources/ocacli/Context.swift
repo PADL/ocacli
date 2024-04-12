@@ -299,7 +299,7 @@ final class Context: @unchecked Sendable {
         relativeTo baseObject: OcaBlock
     ) async throws -> (OcaObjectIdentification, OcaString) {
         let flags =
-            OcaObjectSearchResultFlags([.oNo, .classIdentification, .containerPath, .role])
+            OcaActionObjectSearchResultFlags([.oNo, .classIdentification, .containerPath, .role])
         let searchResult = try await baseObject.find(
             actionObjectsByPath: rolePath,
             resultFlags: flags
@@ -476,7 +476,8 @@ final class Context: @unchecked Sendable {
         Swift.print(items, separator: " ", terminator: "\n")
     }
 
-    @Sendable func onPropertyEvent(event: OcaEvent, eventData data: Data) {
+    @Sendable
+    func onPropertyEvent(event: OcaEvent, eventData data: Data) {
         let decoder = Ocp1Decoder()
         guard let propertyID = try? decoder.decode(
             OcaPropertyID.self,

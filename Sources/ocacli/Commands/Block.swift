@@ -145,7 +145,7 @@ struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLCla
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-private extension OcaObjectSearchResultFlags {
+private extension OcaActionObjectSearchResultFlags {
     static var replSearchResultFlags: Self {
         [.oNo, .classIdentification, .containerPath, .role]
     }
