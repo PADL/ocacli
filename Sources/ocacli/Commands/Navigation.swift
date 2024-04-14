@@ -17,20 +17,6 @@
 import Foundation
 import SwiftOCA
 
-struct ConnectionInfo: REPLCommand {
-    static let name = ["connection-info", "conn"]
-    static let summary = "Display connection status"
-
-    init() {}
-
-    func execute(with context: Context) async throws {
-        let isConnected = await context.connection.isConnected
-        context.print("\(context.connection): \(isConnected ? "connected" : "disconnected")")
-    }
-
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
-}
-
 struct PrintWorkingPath: REPLCommand {
     static let name = ["pwd"]
     static let summary = "Print current object path"
