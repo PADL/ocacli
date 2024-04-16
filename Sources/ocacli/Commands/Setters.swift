@@ -30,21 +30,13 @@ struct Set: REPLCommand {
     init() {}
 
     func execute(with context: Context) async throws {
-        var foundProperty: (String, PartialKeyPath<OcaRoot>)?
-        for property in context.currentObject.allPropertyKeyPaths {
-            if property.key == propertyName {
-                foundProperty = (property.key, property.value)
-                break
-            }
-        }
-
-        guard let foundProperty else {
+        guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
             throw Ocp1Error.status(.parameterError)
         }
 
         try await context.currentObject.setValueReplString(
             context: context,
-            keyPath: foundProperty.1,
+            keyPath: keyPath,
             propertyValue
         )
     }

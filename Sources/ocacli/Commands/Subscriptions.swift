@@ -70,15 +70,7 @@ struct Watch: REPLCommand {
     init() {}
 
     func execute(with context: Context) async throws {
-        var keyPath: PartialKeyPath<OcaRoot>!
-
-        for property in context.currentObject.allPropertyKeyPaths {
-            guard property.key == propertyName else { continue }
-            keyPath = property.value
-            break
-        }
-
-        guard let keyPath else {
+        guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
             throw Ocp1Error.status(.parameterError)
         }
 

@@ -82,22 +82,15 @@ struct Get: REPLCommand {
     init() {}
 
     func execute(with context: Context) async throws {
-        var foundProperty = false
-        for property in context.currentObject.allPropertyKeyPaths {
-            if property.key == propertyName {
-                let value = try await context.currentObject.getValueReplString(
-                    context: context,
-                    keyPath: property.value
-                )
-                context.print("\(value ?? "null")")
-                foundProperty = true
-                break
-            }
-        }
-
-        if !foundProperty {
+        guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
             throw Ocp1Error.status(.parameterError)
         }
+
+        let value = try await context.currentObject.getValueReplString(
+            context: context,
+            keyPath: keyPath
+        )
+        context.print("\(value ?? "null")")
     }
 
     static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
