@@ -253,13 +253,13 @@ final class Context: @unchecked Sendable {
             }
 
             guard let childObject else {
-                throw Ocp1Error.objectNotPresent
+                throw Ocp1Error.objectNotPresent(OcaInvalidONo)
             }
 
             object = childObject
         }
 
-        guard let object else { throw Ocp1Error.objectNotPresent }
+        guard let object else { throw Ocp1Error.objectNotPresent(OcaInvalidONo) }
         return object
     }
 
@@ -284,13 +284,13 @@ final class Context: @unchecked Sendable {
             }
 
             guard let childObject else {
-                throw Ocp1Error.objectNotPresent
+                throw Ocp1Error.objectNotPresent(OcaInvalidONo)
             }
 
             object = childObject
         }
 
-        guard let object else { throw Ocp1Error.objectNotPresent }
+        guard let object else { throw Ocp1Error.objectNotPresent(OcaInvalidONo) }
         return object
     }
 
@@ -305,11 +305,13 @@ final class Context: @unchecked Sendable {
             resultFlags: flags
         )
 
-        guard searchResult.count == 1, let oNo = searchResult[0].oNo,
-              let role = searchResult[0].role,
+        guard searchResult.count == 1, let oNo = searchResult[0].oNo else {
+            throw Ocp1Error.status(.processingFailed)
+        }
+        guard let role = searchResult[0].role,
               let classIdentification = searchResult[0].classIdentification
         else {
-            throw Ocp1Error.objectNotPresent
+            throw Ocp1Error.objectNotPresent(oNo)
         }
 
         return (OcaObjectIdentification(
@@ -398,7 +400,7 @@ final class Context: @unchecked Sendable {
             }
         }
         guard let object else {
-            throw Ocp1Error.objectNotPresent
+            throw Ocp1Error.objectNotPresent(OcaInvalidONo)
         }
         guard let object = object as? T else {
             throw Ocp1Error.objectClassMismatch
