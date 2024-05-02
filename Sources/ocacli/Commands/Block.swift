@@ -206,18 +206,15 @@ private extension _FindActionObjectsRecursive {
         let searchResults = try await find(searchName, in: block)
         for searchResult in searchResults {
             do {
-                guard let object = await context.connection.resolve(object: OcaObjectIdentification(
+                let object = try await context.connection.resolve(object: OcaObjectIdentification(
                     oNo: searchResult.oNo!,
                     classIdentification: searchResult.classIdentification!
-                )) else {
-                    throw Ocp1Error.status(.processingFailed)
-                }
+                ))
                 object.cacheRole(searchResult.role!)
 
                 let rolePath = try await (searchResult.containerPath! + [searchResult.oNo!])
                     .asyncMap {
                         let object = try await context.connection.resolve(objectOfUnknownClass: $0)
-                        guard let object else { throw Ocp1Error.status(.processingFailed) }
                         return try await object.getRole()
                     }
                 context.print(pathComponentsToPathString(rolePath))

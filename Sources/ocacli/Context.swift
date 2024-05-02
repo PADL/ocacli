@@ -344,7 +344,7 @@ final class Context: @unchecked Sendable {
                     with: path,
                     relativeTo: baseObject
                 )
-                object = await connection.resolve(object: objectIdentificationAndRole.0)
+                object = try? await connection.resolve(object: objectIdentificationAndRole.0)
 
                 /// sparseRolePathCache is used to cache results of FindActionObjectsByPath()
                 /// where we haven't necessarily traversed the complete object hierarchy
@@ -377,7 +377,7 @@ final class Context: @unchecked Sendable {
         } else if path == "..", let currentObject = currentObject as? OcaOwnable {
             let owner = try await currentObject
                 .getOwner(flags: contextFlags.cachedPropertyResolutionFlags)
-            object = await connection
+            object = await try connection
                 .resolve(object: OcaObjectIdentification(
                     oNo: owner,
                     classIdentification: OcaBlock.classIdentification

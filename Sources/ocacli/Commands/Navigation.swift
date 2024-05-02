@@ -161,9 +161,7 @@ struct Resolve: REPLCommand {
         guard let oNoString, let oNo = OcaONo(oNoString: oNoString) else {
             throw Ocp1Error.status(.parameterError)
         }
-        guard let object = try await context.connection.resolve(objectOfUnknownClass: oNo) else {
-            throw Ocp1Error.status(.badONo)
-        }
+        let object = try await context.connection.resolve(objectOfUnknownClass: oNo)
         try await context
             .print(
                 object

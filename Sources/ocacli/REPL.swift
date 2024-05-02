@@ -266,7 +266,7 @@ extension OcaRoot: REPLStringConvertible {
 
 extension OcaObjectIdentification: REPLStringConvertible {
     func replString(context: Context, object: OcaRoot) async -> String {
-        guard let _object = await context.connection.resolve(object: self) else {
+        guard let _object = try? await context.connection.resolve(object: self) else {
             return oNo.oNoString
         }
         return await _object.replString(context: context, object: object)
