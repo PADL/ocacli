@@ -377,7 +377,7 @@ final class Context: @unchecked Sendable {
         } else if path == "..", let currentObject = currentObject as? OcaOwnable {
             let owner = try await currentObject
                 .getOwner(flags: contextFlags.cachedPropertyResolutionFlags)
-            object = await try connection
+            object = try await connection
                 .resolve(object: OcaObjectIdentification(
                     oNo: owner,
                     classIdentification: OcaBlock.classIdentification
