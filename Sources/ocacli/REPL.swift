@@ -173,21 +173,22 @@ final class REPLCommandRegistry {
 
       let argumentValue = arguments[argumentIndex]
 
-      if let value = child.value as? REPLCommandArgument<String> {
+      switch child.value {
+      case let value as REPLCommandArgument<String>:
         value.wrappedValue = argumentValue
-      } else if let value = child.value as? REPLCommandArgument<Bool> {
+      case let value as REPLCommandArgument<Bool>:
         value.wrappedValue = NSString(string: argumentValue).boolValue
-      } else if let value = child.value as? REPLCommandArgument<Int> {
+      case let value as REPLCommandArgument<Int>:
         value.wrappedValue = Int(fromString: argumentValue)
-      } else if let value = child.value as? REPLCommandArgument<UInt> {
+      case let value as REPLCommandArgument<UInt>:
         value.wrappedValue = UInt(fromString: argumentValue)
-      } else if let value = child.value as? REPLCommandArgument<Float> {
+      case let value as REPLCommandArgument<Float>:
         value.wrappedValue = Float(fromString: argumentValue)
-      } else if let value = child.value as? REPLCommandArgument<Double> {
+      case let value as REPLCommandArgument<Double>:
         value.wrappedValue = Double(fromString: argumentValue)
-      } else if let value = child.value as? REPLCommandArgument<OcaRoot> {
+      case let value as REPLCommandArgument<OcaRoot>:
         value.wrappedValue = try await context.resolve(rolePath: argumentValue)
-      } else {
+      default:
         throw Ocp1Error.status(.parameterError)
       }
 
