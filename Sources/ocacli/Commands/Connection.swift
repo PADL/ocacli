@@ -18,121 +18,121 @@ import Foundation
 import SwiftOCA
 
 struct Connect: REPLCommand {
-    static let name = ["connect"]
-    static let summary = "Connect to device"
+  static let name = ["connect"]
+  static let summary = "Connect to device"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        if await context.connection.isConnected == false {
-            try await context.connection.connect()
-        }
+  func execute(with context: Context) async throws {
+    if await context.connection.isConnected == false {
+      try await context.connection.connect()
     }
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct Disconnect: REPLCommand {
-    static let name = ["disconnect"]
-    static let summary = "Disconnect from device"
+  static let name = ["disconnect"]
+  static let summary = "Disconnect from device"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        if await context.connection.isConnected {
-            try await context.connection.disconnect()
-        }
+  func execute(with context: Context) async throws {
+    if await context.connection.isConnected {
+      try await context.connection.disconnect()
     }
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct ConnectionInfo: REPLCommand {
-    static let name = ["connection-info", "conn"]
-    static let summary = "Display connection status"
+  static let name = ["connection-info", "conn"]
+  static let summary = "Display connection status"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let isConnected = await context.connection.isConnected
-        context.print("\(context.connection): \(isConnected ? "connected" : "disconnected")")
-    }
+  func execute(with context: Context) async throws {
+    let isConnected = await context.connection.isConnected
+    context.print("\(context.connection): \(isConnected ? "connected" : "disconnected")")
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct DeviceInfo: REPLCommand {
-    static let name = ["device-info"]
-    static let summary = "Show device information"
+  static let name = ["device-info"]
+  static let summary = "Show device information"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let deviceManager = await context.connection.deviceManager
-        return try await Show.show(context: context, object: deviceManager)
-    }
+  func execute(with context: Context) async throws {
+    let deviceManager = await context.connection.deviceManager
+    return try await Show.show(context: context, object: deviceManager)
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct ClearCache: REPLCommand {
-    static let name = ["clear-cache"]
-    static let summary = "Clear object cache"
+  static let name = ["clear-cache"]
+  static let summary = "Clear object cache"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        await context.connection.clearObjectCache()
-    }
+  func execute(with context: Context) async throws {
+    await context.connection.clearObjectCache()
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 extension Duration {
-    var timeInterval: TimeInterval {
-        TimeInterval(components.seconds) + Double(components.attoseconds) / 1e18
-    }
+  var timeInterval: TimeInterval {
+    TimeInterval(components.seconds) + Double(components.attoseconds) / 1e18
+  }
 }
 
 extension ContinuousClock.Instant {
-    var date: Date {
-        // FIXME: race condition from retrieving time twice
-        let duration = duration(to: .now)
-        return Date.now - duration.timeInterval
-    }
+  var date: Date {
+    // FIXME: race condition from retrieving time twice
+    let duration = duration(to: .now)
+    return Date.now - duration.timeInterval
+  }
 }
 
 struct Statistics: REPLCommand {
-    static let name = ["statistics"]
-    static let summary = "Show connection statistics"
+  static let name = ["statistics"]
+  static let summary = "Show connection statistics"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .medium
+  func execute(with context: Context) async throws {
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateStyle = .medium
+    dateFormatter.timeStyle = .medium
 
-        let statistics = await context.connection.statistics
-        context.print("isConnected: \(statistics.isConnected)")
-        context.print("requestCount: \(statistics.requestCount)")
-        context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
-        context.print("outstandingRequests: \(statistics.outstandingRequests)")
-        context
-            .print(
-                "subscribedEvents: \(statistics.subscribedEvents.map { "\($0.eventID)@\($0.emitterONo)" })"
-            )
-        context
-            .print(
-                "lastMessageSentTime: \(dateFormatter.string(from: statistics.lastMessageSentTime.date))"
-            )
-        if let lastMessageReceivedTime = statistics.lastMessageReceivedTime {
-            context
-                .print(
-                    "lastMessageReceivedTime: \(dateFormatter.string(from: lastMessageReceivedTime.date))"
-                )
-        }
+    let statistics = await context.connection.statistics
+    context.print("isConnected: \(statistics.isConnected)")
+    context.print("requestCount: \(statistics.requestCount)")
+    context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
+    context.print("outstandingRequests: \(statistics.outstandingRequests)")
+    context
+      .print(
+        "subscribedEvents: \(statistics.subscribedEvents.map { "\($0.eventID)@\($0.emitterONo)" })"
+      )
+    context
+      .print(
+        "lastMessageSentTime: \(dateFormatter.string(from: statistics.lastMessageSentTime.date))"
+      )
+    if let lastMessageReceivedTime = statistics.lastMessageReceivedTime {
+      context
+        .print(
+          "lastMessageReceivedTime: \(dateFormatter.string(from: lastMessageReceivedTime.date))"
+        )
     }
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }

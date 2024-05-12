@@ -18,52 +18,52 @@ import Foundation
 import SwiftOCA
 
 struct LockNoReadWrite: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
-    static let name = ["lock-total", "lock-no-read-write"]
-    static let summary = "Lock object from reads and writes"
+  static let name = ["lock-total", "lock-no-read-write"]
+  static let summary = "Lock object from reads and writes"
 
-    var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int { 0 }
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let object = object ?? context.currentObject
-        try await object.setLockNoReadWrite()
-    }
+  func execute(with context: Context) async throws {
+    let object = object ?? context.currentObject
+    try await object.setLockNoReadWrite()
+  }
 }
 
 struct Unlock: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
-    static let name = ["unlock"]
-    static let summary = "Unlock object"
+  static let name = ["unlock"]
+  static let summary = "Unlock object"
 
-    var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int { 0 }
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let object = object ?? context.currentObject
-        try await object.unlock()
-    }
+  func execute(with context: Context) async throws {
+    let object = object ?? context.currentObject
+    try await object.unlock()
+  }
 }
 
 struct LockNoWrite: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
-    static let name = ["lock", "lock-readonly", "lock-no-write"]
-    static let summary = "Lock object from writes"
+  static let name = ["lock", "lock-readonly", "lock-no-write"]
+  static let summary = "Lock object from writes"
 
-    var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int { 0 }
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let object = object ?? context.currentObject
-        try await object.setLockNoWrite()
-    }
+  func execute(with context: Context) async throws {
+    let object = object ?? context.currentObject
+    try await object.setLockNoWrite()
+  }
 }

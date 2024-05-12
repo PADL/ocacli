@@ -18,156 +18,156 @@ import Foundation
 import SwiftOCA
 
 struct PrintWorkingPath: REPLCommand {
-    static let name = ["pwd"]
-    static let summary = "Print current object path"
+  static let name = ["pwd"]
+  static let summary = "Print current object path"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        context.print(context.currentPathString)
-    }
+  func execute(with context: Context) async throws {
+    context.print(context.currentPathString)
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct Up: REPLCommand {
-    static let name = ["up"]
-    static let summary = "Change to parent object path"
+  static let name = ["up"]
+  static let summary = "Change to parent object path"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        try await context.changeCurrentPath(to: "..")
-    }
+  func execute(with context: Context) async throws {
+    try await context.changeCurrentPath(to: "..")
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct ChangePath: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["cd"]
-    static let summary = "Change current object path"
+  static let name = ["cd"]
+  static let summary = "Change current object path"
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        try await context.changeCurrentPath(to: object)
-    }
+  func execute(with context: Context) async throws {
+    try await context.changeCurrentPath(to: object)
+  }
 }
 
 struct PushPath: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["pushd"]
-    static let summary = "Add current path to top of stack"
+  static let name = ["pushd"]
+  static let summary = "Add current path to top of stack"
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        try await context.pushPath(object)
-    }
+  func execute(with context: Context) async throws {
+    try await context.pushPath(object)
+  }
 }
 
 struct PopPath: REPLCommand, REPLCurrentBlockCompletable {
-    static let name = ["popd"]
-    static let summary = "Remove object from stack"
+  static let name = ["popd"]
+  static let summary = "Remove object from stack"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        try await context.popPath()
-    }
+  func execute(with context: Context) async throws {
+    try await context.popPath()
+  }
 }
 
 struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
-    REPLClassSpecificCommand
+  REPLClassSpecificCommand
 {
-    static let name = ["list", "ls"]
-    static let summary = "Lists action objects in block"
-    static var supportedClasses: [OcaClassIdentification] { [OcaBlock.classIdentification] }
+  static let name = ["list", "ls"]
+  static let summary = "Lists action objects in block"
+  static var supportedClasses: [OcaClassIdentification] { [OcaBlock.classIdentification] }
 
-    var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int { 0 }
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        guard let object = (object ?? context.currentObject) as? OcaBlock else {
-            return
-        }
-
-        let actionObjects = try await object.resolveActionObjects()
-
-        await withTaskGroup(of: String.self, returning: [String].self) { taskGroup in
-            for actionObject in actionObjects {
-                taskGroup.addTask {
-                    await (try? actionObject.getRole()) ?? actionObject.objectNumber.oNoString
-                }
-            }
-            return await taskGroup.collect()
-        }.sorted().forEach { role in
-            context.print(role)
-        }
-
-        if object == context.currentObject {
-            await context.refreshCurrentObjectCompletions()
-        }
+  func execute(with context: Context) async throws {
+    guard let object = (object ?? context.currentObject) as? OcaBlock else {
+      return
     }
+
+    let actionObjects = try await object.resolveActionObjects()
+
+    await withTaskGroup(of: String.self, returning: [String].self) { taskGroup in
+      for actionObject in actionObjects {
+        taskGroup.addTask {
+          await (try? actionObject.getRole()) ?? actionObject.objectNumber.oNoString
+        }
+      }
+      return await taskGroup.collect()
+    }.sorted().forEach { role in
+      context.print(role)
+    }
+
+    if object == context.currentObject {
+      await context.refreshCurrentObjectCompletions()
+    }
+  }
 }
 
 struct ListObjectNumbers: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
-    REPLClassSpecificCommand
+  REPLClassSpecificCommand
 {
-    static let name = ["list-object-numbers"]
-    static let summary = "Lists action objects in block by object number"
-    static var supportedClasses: [OcaClassIdentification] { [OcaBlock.classIdentification] }
+  static let name = ["list-object-numbers"]
+  static let summary = "Lists action objects in block by object number"
+  static var supportedClasses: [OcaClassIdentification] { [OcaBlock.classIdentification] }
 
-    var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int { 0 }
 
-    @REPLCommandArgument
-    var object: OcaRoot!
+  @REPLCommandArgument
+  var object: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        guard let object = (object ?? context.currentObject) as? OcaBlock else {
-            return
-        }
-
-        for actionObject in try await object
-            .getActionObjects(flags: context.contextFlags.cachedPropertyResolutionFlags)
-            .sorted(by: { $1.oNo > $0.oNo })
-        {
-            context.print(actionObject.oNo.oNoString)
-        }
+  func execute(with context: Context) async throws {
+    guard let object = (object ?? context.currentObject) as? OcaBlock else {
+      return
     }
+
+    for actionObject in try await object
+      .getActionObjects(flags: context.contextFlags.cachedPropertyResolutionFlags)
+      .sorted(by: { $1.oNo > $0.oNo })
+    {
+      context.print(actionObject.oNo.oNoString)
+    }
+  }
 }
 
 struct Resolve: REPLCommand {
-    static let name = ["resolve"]
-    static let summary = "Resolves an object number to a name"
+  static let name = ["resolve"]
+  static let summary = "Resolves an object number to a name"
 
-    @REPLCommandArgument
-    var oNoString: String!
+  @REPLCommandArgument
+  var oNoString: String!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        guard let oNoString, let oNo = OcaONo(oNoString: oNoString) else {
-            throw Ocp1Error.status(.parameterError)
-        }
-        let object = try await context.connection.resolve(objectOfUnknownClass: oNo)
-        try await context
-            .print(
-                object
-                    .getRolePathString(flags: context.contextFlags.cachedPropertyResolutionFlags)
-            )
+  func execute(with context: Context) async throws {
+    guard let oNoString, let oNo = OcaONo(oNoString: oNoString) else {
+      throw Ocp1Error.status(.parameterError)
     }
+    let object = try await context.connection.resolve(objectOfUnknownClass: oNo)
+    try await context
+      .print(
+        object
+          .getRolePathString(flags: context.contextFlags.cachedPropertyResolutionFlags)
+      )
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }

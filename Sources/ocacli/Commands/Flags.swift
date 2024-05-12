@@ -18,58 +18,58 @@ import Foundation
 import SwiftOCA
 
 struct Flags: REPLCommand {
-    static let name = ["get-flags"]
-    static let summary = "Show enabled flags"
+  static let name = ["get-flags"]
+  static let summary = "Show enabled flags"
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        for flag in ContextFlagsNames.allCases {
-            if context.contextFlags.contains(ContextFlags(flag)) {
-                context.print(flag)
-            }
-        }
+  func execute(with context: Context) async throws {
+    for flag in ContextFlagsNames.allCases {
+      if context.contextFlags.contains(ContextFlags(flag)) {
+        context.print(flag)
+      }
     }
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct SetFlag: REPLCommand {
-    static let name = ["set-flag"]
-    static let summary = "Enable a flag"
+  static let name = ["set-flag"]
+  static let summary = "Enable a flag"
 
-    @REPLCommandArgument
-    var flagName: String!
+  @REPLCommandArgument
+  var flagName: String!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        guard let flagName, let flag = ContextFlags(string: flagName) else {
-            throw Ocp1Error.status(.parameterError)
-        }
-        context.contextFlags.rawValue |= flag.rawValue
-        try await context.connection.set(options: context.contextFlags.connectionOptions)
+  func execute(with context: Context) async throws {
+    guard let flagName, let flag = ContextFlags(string: flagName) else {
+      throw Ocp1Error.status(.parameterError)
     }
+    context.contextFlags.rawValue |= flag.rawValue
+    try await context.connection.set(options: context.contextFlags.connectionOptions)
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct ClearFlag: REPLCommand {
-    static let name = ["clear-flag"]
-    static let summary = "Clear a flag"
+  static let name = ["clear-flag"]
+  static let summary = "Clear a flag"
 
-    @REPLCommandArgument
-    var flagName: String!
+  @REPLCommandArgument
+  var flagName: String!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        guard let flagName, let flag = ContextFlags(string: flagName) else {
-            throw Ocp1Error.status(.parameterError)
-        }
-        context.contextFlags.rawValue &= ~(flag.rawValue)
-        try await context.connection.set(options: context.contextFlags.connectionOptions)
+  func execute(with context: Context) async throws {
+    guard let flagName, let flag = ContextFlags(string: flagName) else {
+      throw Ocp1Error.status(.parameterError)
     }
+    context.contextFlags.rawValue &= ~(flag.rawValue)
+    try await context.connection.set(options: context.contextFlags.connectionOptions)
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }

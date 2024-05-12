@@ -18,30 +18,30 @@ import Foundation
 import SwiftOCA
 
 struct Set: REPLCommand {
-    static let name = ["set"]
-    static let summary = "Set a property"
+  static let name = ["set"]
+  static let summary = "Set a property"
 
-    @REPLCommandArgument
-    var propertyName: String!
+  @REPLCommandArgument
+  var propertyName: String!
 
-    @REPLCommandArgument
-    var propertyValue: String!
+  @REPLCommandArgument
+  var propertyValue: String!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
-            throw Ocp1Error.status(.parameterError)
-        }
-
-        try await context.currentObject.setValueReplString(
-            context: context,
-            keyPath: keyPath,
-            propertyValue
-        )
+  func execute(with context: Context) async throws {
+    guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
+      throw Ocp1Error.status(.parameterError)
     }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
-        context.currentObject.allPropertyKeyPaths.map(\.key)
-    }
+    try await context.currentObject.setValueReplString(
+      context: context,
+      keyPath: keyPath,
+      propertyValue
+    )
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
+    context.currentObject.allPropertyKeyPaths.map(\.key)
+  }
 }

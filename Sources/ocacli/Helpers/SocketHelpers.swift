@@ -18,47 +18,47 @@ import Foundation
 import SwiftOCA
 
 extension in_addr {
-    init(_ string: String) throws {
-        var address = in_addr()
-        guard inet_pton(AF_INET, string, &address) == 1 else {
-            throw Ocp1Error.serviceResolutionFailed
-        }
-        self = address
+  init(_ string: String) throws {
+    var address = in_addr()
+    guard inet_pton(AF_INET, string, &address) == 1 else {
+      throw Ocp1Error.serviceResolutionFailed
     }
+    self = address
+  }
 }
 
 extension in6_addr {
-    init(_ string: String) throws {
-        var address = in6_addr()
-        guard inet_pton(AF_INET6, string, &address) == 1 else {
-            throw Ocp1Error.serviceResolutionFailed
-        }
-        self = address
+  init(_ string: String) throws {
+    var address = in6_addr()
+    guard inet_pton(AF_INET6, string, &address) == 1 else {
+      throw Ocp1Error.serviceResolutionFailed
     }
+    self = address
+  }
 }
 
 extension sockaddr_in {
-    init(_ string: String, port: UInt16? = nil) throws {
-        var address = sockaddr_in()
-        address.sin_family = sa_family_t(AF_INET)
-        address.sin_addr = try in_addr(string)
-        if let port { address.sin_port = port.bigEndian }
-        #if canImport(Darwin)
-        address.sin_len = UInt8(MemoryLayout<Self>.size)
-        #endif
-        self = address
-    }
+  init(_ string: String, port: UInt16? = nil) throws {
+    var address = sockaddr_in()
+    address.sin_family = sa_family_t(AF_INET)
+    address.sin_addr = try in_addr(string)
+    if let port { address.sin_port = port.bigEndian }
+    #if canImport(Darwin)
+    address.sin_len = UInt8(MemoryLayout<Self>.size)
+    #endif
+    self = address
+  }
 }
 
 extension sockaddr_in6 {
-    init(_ string: String, port: UInt16? = nil) throws {
-        var address = sockaddr_in6()
-        address.sin6_family = sa_family_t(AF_INET6)
-        address.sin6_addr = try in6_addr(string)
-        if let port { address.sin6_port = port.bigEndian }
-        #if canImport(Darwin)
-        address.sin6_len = UInt8(MemoryLayout<Self>.size)
-        #endif
-        self = address
-    }
+  init(_ string: String, port: UInt16? = nil) throws {
+    var address = sockaddr_in6()
+    address.sin6_family = sa_family_t(AF_INET6)
+    address.sin6_addr = try in6_addr(string)
+    if let port { address.sin6_port = port.bigEndian }
+    #if canImport(Darwin)
+    address.sin6_len = UInt8(MemoryLayout<Self>.size)
+    #endif
+    self = address
+  }
 }

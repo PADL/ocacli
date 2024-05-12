@@ -19,92 +19,92 @@ import SwiftOCA
 
 @OcaConnection
 extension OcaBlock {
-    var cachedActionObjectRoles: [(OcaRoot, OcaString)] {
-        get async throws {
-            guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
-                throw Ocp1Error.noInitialValue
-            }
+  var cachedActionObjectRoles: [(OcaRoot, OcaString)] {
+    get async throws {
+      guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
+        throw Ocp1Error.noInitialValue
+      }
 
-            var roles = [(OcaRoot, OcaString)]()
+      var roles = [(OcaRoot, OcaString)]()
 
-            for actionObject in actionObjects {
-                if let actionObject = connectionDelegate?
-                    .resolve(cachedObject: actionObject.oNo),
-                    let role = try? actionObject.role.asOptionalResult().get()
-                {
-                    roles.append((actionObject, role))
-                }
-            }
-
-            return roles
+      for actionObject in actionObjects {
+        if let actionObject = connectionDelegate?
+          .resolve(cachedObject: actionObject.oNo),
+          let role = try? actionObject.role.asOptionalResult().get()
+        {
+          roles.append((actionObject, role))
         }
+      }
+
+      return roles
     }
+  }
 }
 
 @OcaConnection
 extension OcaRoot {
-    func getJsonRepresentation(
-        context: Context,
-        options: JSONSerialization.WritingOptions
-    ) async throws -> Data {
-        let jsonResultData = try await JSONSerialization.data(
-            withJSONObject: getJsonValue(flags: .returnCachedValue),
-            options: options
-        )
-        return jsonResultData
-    }
+  func getJsonRepresentation(
+    context: Context,
+    options: JSONSerialization.WritingOptions
+  ) async throws -> Data {
+    let jsonResultData = try await JSONSerialization.data(
+      withJSONObject: getJsonValue(flags: .returnCachedValue),
+      options: options
+    )
+    return jsonResultData
+  }
 }
 
 extension OcaONo {
-    var oNoString: String {
-        "<\(String(format: "0x%x", self))>"
-    }
+  var oNoString: String {
+    "<\(String(format: "0x%x", self))>"
+  }
 
-    init?(oNoString: String) {
-        guard oNoString.hasPrefix("<") && oNoString.hasSuffix(">") else {
-            return nil
-        }
-        let offset: Int
-        offset = oNoString.hasPrefix("<0x") ? 3 : 1
-        let start = oNoString.index(oNoString.startIndex, offsetBy: offset)
-        let end = oNoString.index(oNoString.endIndex, offsetBy: -1)
-        guard let oNo = OcaONo(String(oNoString[start..<end]), radix: offset == 1 ? 10 : 16) else {
-            return nil
-        }
-        self = oNo
+  init?(oNoString: String) {
+    guard oNoString.hasPrefix("<") && oNoString.hasSuffix(">") else {
+      return nil
     }
+    let offset: Int
+    offset = oNoString.hasPrefix("<0x") ? 3 : 1
+    let start = oNoString.index(oNoString.startIndex, offsetBy: offset)
+    let end = oNoString.index(oNoString.endIndex, offsetBy: -1)
+    guard let oNo = OcaONo(String(oNoString[start..<end]), radix: offset == 1 ? 10 : 16) else {
+      return nil
+    }
+    self = oNo
+  }
 }
 
 func pathComponentsToPathString(
-    _ path: OcaNamePath,
-    absolute: Bool = true,
-    escaping: Bool = false
+  _ path: OcaNamePath,
+  absolute: Bool = true,
+  escaping: Bool = false
 ) -> String {
-    let pathString = (absolute ? "/" : "") + path.joined(separator: "/")
-    if escaping && pathString.contains(" ") {
-        return "\"\(pathString)\""
-    } else {
-        return pathString
-    }
+  let pathString = (absolute ? "/" : "") + path.joined(separator: "/")
+  if escaping && pathString.contains(" ") {
+    return "\"\(pathString)\""
+  } else {
+    return pathString
+  }
 }
 
-extension Array where Element == String {
-    var pathString: String {
-        pathComponentsToPathString(self)
-    }
+extension [String] {
+  var pathString: String {
+    pathComponentsToPathString(self)
+  }
 }
 
 extension String {
-    var pathComponents: ([String], Bool) {
-        let namePath = OcaNamePath(components(separatedBy: "/"))
-        if namePath.count > 0, namePath.first!.isEmpty {
-            if namePath.allSatisfy(\.isEmpty) {
-                return ([], true)
-            } else {
-                return (Array(namePath[1...]), true)
-            }
-        } else {
-            return (namePath, false)
-        }
+  var pathComponents: ([String], Bool) {
+    let namePath = OcaNamePath(components(separatedBy: "/"))
+    if namePath.count > 0, namePath.first!.isEmpty {
+      if namePath.allSatisfy(\.isEmpty) {
+        return ([], true)
+      } else {
+        return (Array(namePath[1...]), true)
+      }
+    } else {
+      return (namePath, false)
     }
+  }
 }

@@ -18,19 +18,19 @@ import Foundation
 import SwiftOCA
 
 struct ResetTimeSource: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-    static let name = ["reset", "reset-time-source"]
-    static let summary = "Reset time source"
+  static let name = ["reset", "reset-time-source"]
+  static let summary = "Reset time source"
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaTimeSource.classIdentification]
-    }
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaTimeSource.classIdentification]
+  }
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let timeSource = context.currentObject as! OcaTimeSource
-        try await timeSource.reset()
-    }
+  func execute(with context: Context) async throws {
+    let timeSource = context.currentObject as! OcaTimeSource
+    try await timeSource.reset()
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }

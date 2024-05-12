@@ -18,43 +18,43 @@ import Foundation
 import SwiftOCA
 
 struct AddMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-    static let name = ["add-member"]
-    static let summary = "Add group member"
+  static let name = ["add-member"]
+  static let summary = "Add group member"
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaGroup.classIdentification]
-    }
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaGroup.classIdentification]
+  }
 
-    @REPLCommandArgument
-    var member: OcaRoot!
+  @REPLCommandArgument
+  var member: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let group = context.currentObject as! OcaGroup
-        try await group.add(member: member.objectNumber)
-    }
+  func execute(with context: Context) async throws {
+    let group = context.currentObject as! OcaGroup
+    try await group.add(member: member.objectNumber)
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct DeleteMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-    static let name = ["delete-member"]
-    static let summary = "Delete group member"
+  static let name = ["delete-member"]
+  static let summary = "Delete group member"
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaGroup.classIdentification]
-    }
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaGroup.classIdentification]
+  }
 
-    @REPLCommandArgument
-    var member: OcaRoot!
+  @REPLCommandArgument
+  var member: OcaRoot!
 
-    init() {}
+  init() {}
 
-    func execute(with context: Context) async throws {
-        let group = context.currentObject as! OcaGroup
-        try await group.add(member: member.objectNumber)
-    }
+  func execute(with context: Context) async throws {
+    let group = context.currentObject as! OcaGroup
+    try await group.add(member: member.objectNumber)
+  }
 
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }

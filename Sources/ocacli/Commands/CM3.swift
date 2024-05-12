@@ -18,97 +18,97 @@ import Foundation
 import SwiftOCA
 
 struct GetSourceConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
-    REPLClassSpecificCommand
+  REPLClassSpecificCommand
 {
-    static let name = ["get-source-connector"]
-    static let summary = "Get media transport network source connector(s)"
+  static let name = ["get-source-connector"]
+  static let summary = "Get media transport network source connector(s)"
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaMediaTransportNetwork.classIdentification]
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportNetwork.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 0 }
+
+  @REPLCommandArgument
+  var id: Int?
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
+    if let id {
+      guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+      let sourceConnector = try await mediaTransportNetwork.getSourceConnector(id)
+      context.print("\(sourceConnector)")
+    } else {
+      let sourceConnectors = try await mediaTransportNetwork.getSourceConnectors()
+      context.print("\(sourceConnectors)")
     }
+  }
 
-    var minimumRequiredArguments: Int { 0 }
-
-    @REPLCommandArgument
-    var id: Int?
-
-    init() {}
-
-    func execute(with context: Context) async throws {
-        let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
-        if let id {
-            guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-            let sourceConnector = try await mediaTransportNetwork.getSourceConnector(id)
-            context.print("\(sourceConnector)")
-        } else {
-            let sourceConnectors = try await mediaTransportNetwork.getSourceConnectors()
-            context.print("\(sourceConnectors)")
-        }
-    }
-
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct GetSinkConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
-    REPLClassSpecificCommand
+  REPLClassSpecificCommand
 {
-    static let name = ["get-sink-connector"]
-    static let summary = "Get media transport network sink connector(s)"
+  static let name = ["get-sink-connector"]
+  static let summary = "Get media transport network sink connector(s)"
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaMediaTransportNetwork.classIdentification]
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportNetwork.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 0 }
+
+  @REPLCommandArgument
+  var id: Int?
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
+    if let id {
+      guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+      let sinkConnector = try await mediaTransportNetwork.getSinkConnector(id)
+      context.print("\(sinkConnector)")
+    } else {
+      let sinkConnectors = try await mediaTransportNetwork.getSinkConnectors()
+      context.print("\(sinkConnectors)")
     }
+  }
 
-    var minimumRequiredArguments: Int { 0 }
-
-    @REPLCommandArgument
-    var id: Int?
-
-    init() {}
-
-    func execute(with context: Context) async throws {
-        let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
-        if let id {
-            guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-            let sinkConnector = try await mediaTransportNetwork.getSinkConnector(id)
-            context.print("\(sinkConnector)")
-        } else {
-            let sinkConnectors = try await mediaTransportNetwork.getSinkConnectors()
-            context.print("\(sinkConnectors)")
-        }
-    }
-
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
 struct GetConnectorStatus: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
-    REPLClassSpecificCommand
+  REPLClassSpecificCommand
 {
-    static let name = ["get-connector-status"]
-    static let summary = "Get media transport network connector status"
+  static let name = ["get-connector-status"]
+  static let summary = "Get media transport network connector status"
 
-    static var supportedClasses: [OcaClassIdentification] {
-        [OcaMediaTransportNetwork.classIdentification]
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportNetwork.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 0 }
+
+  @REPLCommandArgument
+  var id: Int?
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
+    if let id {
+      guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
+      let connectorStatus = try await mediaTransportNetwork.getConnectorStatus(id)
+      context.print("\(connectorStatus)")
+    } else {
+      let connectorStatuses = try await mediaTransportNetwork.getConnectorsStatuses()
+      context.print("\(connectorStatuses)")
     }
+  }
 
-    var minimumRequiredArguments: Int { 0 }
-
-    @REPLCommandArgument
-    var id: Int?
-
-    init() {}
-
-    func execute(with context: Context) async throws {
-        let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
-        if let id {
-            guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-            let connectorStatus = try await mediaTransportNetwork.getConnectorStatus(id)
-            context.print("\(connectorStatus)")
-        } else {
-            let connectorStatuses = try await mediaTransportNetwork.getConnectorsStatuses()
-            context.print("\(connectorStatuses)")
-        }
-    }
-
-    static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
