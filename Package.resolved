@@ -15,7 +15,7 @@
       "location" : "https://github.com/lhoward/AsyncExtensions",
       "state" : {
         "branch" : "linux",
-        "revision" : "2218eaa30dbdb39b063e92644fc28ed22e2cb942"
+        "revision" : "0d96d3550ef94f83c2f300021f9985e4fb44f7af"
       }
     },
     {
@@ -96,7 +96,7 @@
       "location" : "https://github.com/PADL/SwiftOCA",
       "state" : {
         "branch" : "main",
-        "revision" : "aeb1ac83611cdf544225b4d7a107365e52225fe0"
+        "revision" : "e630da8393f6e1e7dc6c8f0e22b83d244889fa20"
       }
     },
     {
