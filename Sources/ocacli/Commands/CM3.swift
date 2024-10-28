@@ -15,7 +15,7 @@
 //
 
 import Foundation
-import SwiftOCA
+@_spi(SwiftOCAPrivate) import SwiftOCA
 
 struct GetSourceConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
   REPLClassSpecificCommand
@@ -107,6 +107,64 @@ struct GetConnectorStatus: REPLCommand, REPLOptionalArguments, REPLCurrentBlockC
     } else {
       let connectorStatuses = try await mediaTransportNetwork.getConnectorsStatuses()
       context.print("\(connectorStatuses)")
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct GetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+  REPLClassSpecificCommand
+{
+  static let name = ["get-media-clock-rate"]
+  static let summary = "Get nominal media clock rate"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaClock3.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 0 }
+
+  func execute(with context: Context) async throws {
+    let mediaClock3 = context.currentObject as! OcaMediaClock3
+    let currentRateSubject = mediaClock3.$currentRate as any OcaPropertySubjectRepresentable
+
+    try? await currentRateSubject.getValue(
+      context.currentObject,
+      flags: context.contextFlags.propertyResolutionFlags
+    ) { currentRate in
+      let nominalRate = (currentRate as! OcaMediaClockRate).nominalRate
+      print("\(nominalRate)")
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+  REPLClassSpecificCommand
+{
+  static let name = ["set-media-clock-rate"]
+  static let summary = "set nominal media clock rate"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaClock3.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 1 }
+
+  @REPLCommandArgument
+  var nominalRate: OcaFloat32?
+
+  func execute(with context: Context) async throws {
+    let mediaClock3 = context.currentObject as! OcaMediaClock3
+    let currentRateSubject = mediaClock3.$currentRate as any OcaPropertySubjectRepresentable
+
+    try await currentRateSubject.setValue(
+      context.currentObject,
+      nominalRate!
+    ) {
+      OcaMediaClockRate(nominalRate: $0)
     }
   }
 

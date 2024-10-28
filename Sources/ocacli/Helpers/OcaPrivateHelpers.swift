@@ -72,7 +72,7 @@ extension OcaRoot {
   }
 }
 
-private extension OcaPropertySubjectRepresentable {
+extension OcaPropertySubjectRepresentable {
   func getValue<T>(
     _ object: OcaRoot,
     flags: OcaPropertyResolutionFlags,
