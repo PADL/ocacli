@@ -509,7 +509,7 @@ struct DumpSparseRolePathCache: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    context.sparseRolePathCache.forEach { item in
+    for item in context.sparseRolePathCache {
       context.print("\(item.key): \(item.value)")
     }
   }

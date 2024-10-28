@@ -63,11 +63,11 @@ extension OcaRoot {
 
   func getRolePathString(flags: OcaPropertyResolutionFlags) async throws -> String {
     if let rolePathString = try? await getRolePath(flags: flags).pathString {
-      return rolePathString
+      rolePathString
     } else if await (try? isOrphan(flags: flags)) ?? false {
-      return try await getRole()
+      try await getRole()
     } else {
-      return objectNumber.oNoString
+      objectNumber.oNoString
     }
   }
 }

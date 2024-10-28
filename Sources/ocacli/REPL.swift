@@ -258,9 +258,9 @@ extension OcaBoundedPropertyValue: REPLStringConvertible {
 extension OcaRoot: REPLStringConvertible {
   func replString(context: Context, object: OcaRoot) async -> String {
     if let role = try? await getRole() {
-      return role
+      role
     } else {
-      return objectNumber.oNoString
+      objectNumber.oNoString
     }
   }
 }
