@@ -94,14 +94,6 @@ extension Duration {
   }
 }
 
-extension ContinuousClock.Instant {
-  var date: Date {
-    // FIXME: race condition from retrieving time twice
-    let duration = duration(to: .now)
-    return Date.now - duration.timeInterval
-  }
-}
-
 struct Statistics: REPLCommand {
   static let name = ["statistics"]
   static let summary = "Show connection statistics"
@@ -124,12 +116,12 @@ struct Statistics: REPLCommand {
       )
     context
       .print(
-        "lastMessageSentTime: \(dateFormatter.string(from: statistics.lastMessageSentTime.date))"
+        "lastMessageSentTime: \(dateFormatter.string(from: statistics.lastMessageSentTime))"
       )
     if let lastMessageReceivedTime = statistics.lastMessageReceivedTime {
       context
         .print(
-          "lastMessageReceivedTime: \(dateFormatter.string(from: lastMessageReceivedTime.date))"
+          "lastMessageReceivedTime: \(dateFormatter.string(from: lastMessageReceivedTime))"
         )
     }
   }

@@ -15,16 +15,16 @@
       "location" : "https://github.com/lhoward/AsyncExtensions",
       "state" : {
         "branch" : "linux",
-        "revision" : "59013682448947085e68399a837923722c9696c7"
+        "revision" : "7a096ed7d549bcf953500a1899aec8b8f6492d4e"
       }
     },
     {
       "identity" : "flyingfox",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swhitty/FlyingFox",
+      "location" : "https://github.com/PADL/FlyingFox",
       "state" : {
-        "revision" : "0482ba51ff2d6d91a7ea449c3dbdce2a78802b85",
-        "version" : "0.19.0"
+        "branch" : "udp",
+        "revision" : "a5a9cad854d7fbc5a18545b0d7c339ab6e475347"
       }
     },
     {
@@ -64,6 +64,15 @@
       }
     },
     {
+      "identity" : "swift-atomics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-atomics.git",
+      "state" : {
+        "revision" : "cd142fd2f64be2100422d658e7411e39489da985",
+        "version" : "1.2.0"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
@@ -86,8 +95,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log",
       "state" : {
-        "revision" : "9cb486020ebf03bfa5b5df985387a14a98744537",
-        "version" : "1.6.1"
+        "branch" : "main",
+        "revision" : "1efe6f812904b34ed76ba28fd1f3e9f3bc94f8ec"
       }
     },
     {
@@ -114,7 +123,7 @@
       "location" : "https://github.com/PADL/SwiftOCA",
       "state" : {
         "branch" : "main",
-        "revision" : "dd1c9e49b6aed71bfb1a88af7aefa0cd9e081d2d"
+        "revision" : "f32ad78b6e250f53dbf7d706295d36b1a5a3a044"
       }
     },
     {
