@@ -15,16 +15,16 @@
       "location" : "https://github.com/lhoward/AsyncExtensions",
       "state" : {
         "branch" : "linux",
-        "revision" : "7a096ed7d549bcf953500a1899aec8b8f6492d4e"
+        "revision" : "d079f0518f094b723b59326eb22072b844e805cf"
       }
     },
     {
       "identity" : "flyingfox",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/PADL/FlyingFox",
+      "location" : "https://github.com/swhitty/FlyingFox",
       "state" : {
-        "branch" : "udp",
-        "revision" : "a5a9cad854d7fbc5a18545b0d7c339ab6e475347"
+        "branch" : "main",
+        "revision" : "150911e8c6cfabd9c94e92d6d579541a6311baa0"
       }
     },
     {
@@ -96,7 +96,7 @@
       "location" : "https://github.com/apple/swift-log",
       "state" : {
         "branch" : "main",
-        "revision" : "1efe6f812904b34ed76ba28fd1f3e9f3bc94f8ec"
+        "revision" : "0e75c43ee4e4532e23a386670bc4ac8077f4ef58"
       }
     },
     {
@@ -123,7 +123,7 @@
       "location" : "https://github.com/PADL/SwiftOCA",
       "state" : {
         "branch" : "main",
-        "revision" : "f32ad78b6e250f53dbf7d706295d36b1a5a3a044"
+        "revision" : "d7bf027cc7e463688066f89f7ea2f63530f1c5a7"
       }
     },
     {

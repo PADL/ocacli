@@ -72,11 +72,16 @@ struct ContextFlags: OptionSet {
     self.init(flagName)
   }
 
-  var connectionOptions: Ocp1ConnectionOptions {
-    Ocp1ConnectionOptions(
-      automaticReconnect: contains(.automaticReconnect),
-      refreshDeviceTreeOnConnection: contains(.refreshDeviceTreeOnConnection)
-    )
+  var connectionFlags: Ocp1ConnectionFlags {
+    var flags = Ocp1ConnectionFlags()
+
+    if contains(.automaticReconnect) {
+      flags.insert(.automaticReconnect)
+    }
+    if contains(.refreshDeviceTreeOnConnection) {
+      flags.insert(.refreshDeviceTreeOnConnection)
+    }
+    return flags
   }
 
   var propertyResolutionFlags: OcaPropertyResolutionFlags {
@@ -222,7 +227,7 @@ final class Context: @unchecked Sendable {
     self.contextFlags = contextFlags
     self.logger = logger
     connection = try await deviceEndpointInfo
-      .getConnection(options: self.contextFlags.connectionOptions)
+      .getConnection(options: Ocp1ConnectionOptions(flags: self.contextFlags.connectionFlags))
     currentObject = await connection.rootBlock
     try await changeCurrentPath(to: connection.rootBlock)
   }
