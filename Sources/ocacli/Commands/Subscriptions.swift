@@ -34,6 +34,7 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
     else { throw Ocp1Error.alreadySubscribedToEvent }
     let event = OcaEvent(emitterONo: object.objectNumber, eventID: OcaPropertyChangedEventID)
     let cancellable = try await context.connection.addSubscription(
+      label: "com.padl.ocacli",
       event: event,
       callback: context.onPropertyEvent
     )
