@@ -1,29 +1,41 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
-name: Swift
+name: build
 
 on:
   push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        swift: ["5.9"]
-    runs-on: ${{ matrix.os }}
+  darwin:
+    runs-on: macos-15
     steps:
-      - uses: swift-actions/setup-swift@v1.25.0
-        with:
-          swift-version: ${{ matrix.swift }}
-      - uses: actions/checkout@v4
-      - name: Linux dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get install liburing-dev libavahi-compat-libdnssd-dev libavahi-client-dev
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: 🔍 Xcode Select
+        run: |
+          XCODE_PATH=`mdfind "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode' && kMDItemVersion = '16.*'" -onlyin /Applications | head -1`
+          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> $GITHUB_ENV
+      - name: Version
+        run: swift --version
       - name: Build
         run: swift build
+      - name: Test
+        run: swift test
+        timeout-minutes: 1
+
+  linux:
+    runs-on: ubuntu-24.04
+    container: swift:6.0
+    steps:
+      - name: Packages
+        run: |
+          apt-get update
+          apt-get install -y liburing-dev libavahi-compat-libdnssd-dev libavahi-client-dev
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Version
+        run: swift --version
+      - name: Build
+        run: swift build --build-tests
+      - name: Test
+        run: swift test --skip-build
