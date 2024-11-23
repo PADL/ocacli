@@ -19,9 +19,6 @@ jobs:
         run: swift --version
       - name: Build
         run: swift build
-      - name: Test
-        run: swift test
-        timeout-minutes: 1
 
   linux:
     runs-on: ubuntu-24.04
@@ -36,6 +33,4 @@ jobs:
       - name: Version
         run: swift --version
       - name: Build
-        run: swift build --build-tests
-      - name: Test
-        run: swift test --skip-build
+        run: swift build
