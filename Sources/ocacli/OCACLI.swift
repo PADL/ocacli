@@ -26,6 +26,8 @@ final class OCACLI: Command {
   private var hostname: String?
   @CommandArguments(short: "c", long: "command", description: "Commands to execute")
   private var commandsToExecute: [String]
+  @CommandArguments(short: "f", long: "flags", description: "Context flags")
+  private var contextFlags: [ContextFlags]
   @CommandArgument(short: "p", long: "port", description: "Device port")
   private var port: Int = 65000
   @CommandOption(short: "U", long: "udp", description: "Use UDP instead of TCP")
@@ -174,6 +176,10 @@ final class OCACLI: Command {
       .enableRolePathLookupCache,
       .supportsFindActionObjectsByPath,
     ]
+    contextFlags = self.contextFlags.reduce(contextFlags) { result, value in
+      result.union(value)
+    }
+
     let deviceEndpointInfo: DeviceEndpointInfo
 
     if automaticReconnect {

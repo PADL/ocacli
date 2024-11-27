@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import CommandLineKit
 import Foundation
 import Logging
 import SwiftOCA
@@ -30,7 +31,7 @@ enum ContextFlagsNames: Int, CaseIterable {
   case automaticReconnect = 5
   case enableTracing = 6
 
-  init?(string: String) {
+  init?(fromString string: String) {
     for flag in Self.allCases {
       if String(describing: flag) == string {
         self = flag
@@ -46,7 +47,7 @@ enum ContextFlagsNames: Int, CaseIterable {
   }
 }
 
-struct ContextFlags: OptionSet {
+struct ContextFlags: OptionSet, ConvertibleFromString {
   init(rawValue: UInt32) {
     self.rawValue = rawValue
   }
@@ -73,8 +74,8 @@ struct ContextFlags: OptionSet {
   static let automaticReconnect = ContextFlags(ContextFlagsNames.automaticReconnect)
   static let enableTracing = ContextFlags(ContextFlagsNames.enableTracing)
 
-  init?(string: String) {
-    guard let flagName = ContextFlagsNames(string: string) else { return nil }
+  init?(fromString string: String) {
+    guard let flagName = ContextFlagsNames(fromString: string) else { return nil }
     self.init(flagName)
   }
 

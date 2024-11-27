@@ -44,7 +44,7 @@ struct SetFlag: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    guard let flagName, let flag = ContextFlags(string: flagName) else {
+    guard let flagName, let flag = ContextFlags(fromString: flagName) else {
       throw Ocp1Error.status(.parameterError)
     }
     context.contextFlags.rawValue |= flag.rawValue
@@ -67,7 +67,7 @@ struct ClearFlag: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    guard let flagName, let flag = ContextFlags(string: flagName) else {
+    guard let flagName, let flag = ContextFlags(fromString: flagName) else {
       throw Ocp1Error.status(.parameterError)
     }
     context.contextFlags.rawValue &= ~(flag.rawValue)
