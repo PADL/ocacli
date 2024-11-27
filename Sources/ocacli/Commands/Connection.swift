@@ -106,10 +106,11 @@ struct Statistics: REPLCommand {
     dateFormatter.timeStyle = .medium
 
     let statistics = await context.connection.statistics
-    context.print("isConnected: \(statistics.isConnected)")
+
+    context.print("connectionState: \(statistics.connectionState)")
     context.print("requestCount: \(statistics.requestCount)")
-    context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
     context.print("outstandingRequests: \(statistics.outstandingRequests)")
+    context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
     context
       .print(
         "subscribedEvents: \(statistics.subscribedEvents.map { "\($0.eventID)@\($0.emitterONo)" })"
