@@ -202,7 +202,7 @@ enum DeviceEndpointInfo {
       }
     }
 
-    if let connection, await connection.isConnected {
+    if let connection {
       return connection
     } else if let savedError {
       throw savedError
