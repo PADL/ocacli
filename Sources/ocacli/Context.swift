@@ -40,6 +40,10 @@ enum ContextFlagsNames: Int, CaseIterable {
 
     return nil
   }
+
+  static var allCaseNames: [String] {
+    allCases.map { String(describing: $0) }
+  }
 }
 
 struct ContextFlags: OptionSet {
