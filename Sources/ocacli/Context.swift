@@ -28,6 +28,7 @@ enum ContextFlagsNames: Int, CaseIterable {
   case enableRolePathLookupCache = 3
   case refreshDeviceTreeOnConnection = 4
   case automaticReconnect = 5
+  case enableTracing = 6
 
   init?(string: String) {
     for flag in Self.allCases {
@@ -66,6 +67,7 @@ struct ContextFlags: OptionSet {
       .refreshDeviceTreeOnConnection
   )
   static let automaticReconnect = ContextFlags(ContextFlagsNames.automaticReconnect)
+  static let enableTracing = ContextFlags(ContextFlagsNames.enableTracing)
 
   init?(string: String) {
     guard let flagName = ContextFlagsNames(string: string) else { return nil }
@@ -80,6 +82,9 @@ struct ContextFlags: OptionSet {
     }
     if contains(.refreshDeviceTreeOnConnection) {
       flags.insert(.refreshDeviceTreeOnConnection)
+    }
+    if contains(.enableTracing) {
+      flags.insert(.enableTracing)
     }
     return flags
   }
