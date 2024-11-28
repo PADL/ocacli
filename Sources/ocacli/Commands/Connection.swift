@@ -24,9 +24,7 @@ struct Connect: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    if await context.connection.isConnected == false {
-      try await context.connection.connect()
-    }
+    try await context.connection.connect()
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
