@@ -47,7 +47,8 @@ protocol REPLCommand {
 
 extension REPLCommand {
   static var isUsableWhenDisconnected: Bool {
-    self == Help.self || self == Connect.self || self == Exit.self
+    self == Help.self || self == Statistics.self || self == Connect.self || self == Disconnect
+      .self || self == Exit.self
   }
 
   var isUsableWhenDisconnected: Bool {

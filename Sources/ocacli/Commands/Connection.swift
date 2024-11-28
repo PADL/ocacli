@@ -39,9 +39,7 @@ struct Disconnect: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    if await context.connection.isConnected {
-      try await context.connection.disconnect()
-    }
+    try await context.connection.disconnect()
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
