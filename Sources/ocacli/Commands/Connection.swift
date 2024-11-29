@@ -109,7 +109,7 @@ struct Statistics: REPLCommand {
     context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
     context
       .print(
-        "subscribedEvents: \(statistics.subscribedEvents.map { "\($0.eventID)@\($0.emitterONo)" })"
+        "subscribedEvents: \(statistics.subscribedEvents.map { "\($0.eventID)@\($0.emitterONo.oNoString)" })"
       )
     context
       .print(
