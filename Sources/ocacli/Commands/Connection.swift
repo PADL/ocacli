@@ -104,6 +104,7 @@ struct Statistics: REPLCommand {
     let statistics = await context.connection.statistics
 
     context.print("connectionState: \(statistics.connectionState)")
+    context.print("connectionID: \(statistics.connectionID)")
     context.print("requestCount: \(statistics.requestCount)")
     context.print("outstandingRequests: \(statistics.outstandingRequests)")
     context.print("cachedObjectCount: \(statistics.cachedObjectCount)")
