@@ -91,7 +91,7 @@ struct ContextFlags: OptionSet, ConvertibleFromString {
     if contains(.enableTracing) {
       flags.insert(.enableTracing)
     }
-    if contains(.subscribePropertyEvents) {
+    if contains(.subscribePropertyEvents), contains(.automaticReconnect) {
       flags.insert(.refreshSubscriptionsOnReconnection)
     }
     return flags
