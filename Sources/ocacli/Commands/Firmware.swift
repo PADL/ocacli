@@ -195,6 +195,8 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
       try? await firmwareManager.endActiveImageUpdate()
       throw error
     }
+
+    try await firmwareManager.endActiveImageUpdate()
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
