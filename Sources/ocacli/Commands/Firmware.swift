@@ -1,0 +1,221 @@
+//
+// Copyright (c) 2025 PADL Software Pty Ltd
+//
+// Licensed under the Apache License, Version 2.0 (the License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an 'AS IS' BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+import AsyncAlgorithms
+import Crypto
+import Foundation
+import SwiftOCA
+
+actor FirmwareManagerHelper {
+  enum VerifyImageMethod {
+    case none
+    case implicit
+    case data(Data)
+    case url(URL) // URL
+    case sha256Digest
+    case sha384Digest
+    case sha512Digest
+
+    init?(string: String?) {
+      guard let string else {
+        self = .none
+        return
+      }
+      switch string {
+      case "implicit":
+        self = .implicit
+      case "sha256":
+        self = .sha256Digest
+      case "sha384":
+        self = .sha384Digest
+      case "sha512":
+        self = .sha512Digest
+      default:
+        if let data = Data(hex: string) {
+          self = .data(data)
+        } else if let url = URL(string: string) {
+          self = .url(url)
+        } else {
+          return nil
+        }
+      }
+    }
+  }
+
+  private let component: OcaComponent
+  private let url: URL
+  private let method: VerifyImageMethod
+  private var hashFunction: (any HashFunction)?
+  private let chunkSize: Int
+
+  init(component: OcaComponent, url: URL, method: String?, chunkSize: Int) async throws {
+    guard let method = VerifyImageMethod(string: method) else {
+      throw Ocp1Error.status(.parameterError)
+    }
+    try await self.init(component: component, url: url, method: method, chunkSize: chunkSize)
+  }
+
+  init(
+    component: OcaComponent,
+    url: URL,
+    method: VerifyImageMethod,
+    chunkSize: Int
+  ) async throws {
+    self.component = component
+    self.url = url
+    self.method = method
+    self.chunkSize = chunkSize
+
+    switch self.method {
+    case .sha256Digest:
+      hashFunction = SHA256()
+    case .sha384Digest:
+      hashFunction = SHA384()
+    case .sha512Digest:
+      hashFunction = SHA512()
+    default:
+      break
+    }
+  }
+
+  func process(_ body: (_: [UInt8]) async throws -> ()) async throws {
+    let (bytes, _) = try await URLSession.shared.bytes(from: url)
+
+    for try await chunk in bytes.chunks(ofCount: chunkSize) {
+      try await body(chunk)
+      hashFunction?.update(data: chunk)
+    }
+  }
+
+  var verifyData: Data? {
+    get async throws {
+      switch method {
+      case .none:
+        return nil
+      case .implicit:
+        return Data()
+      case let .data(data):
+        return data
+      case let .url(url):
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return data
+      case .sha256Digest:
+        fallthrough
+      case .sha384Digest:
+        fallthrough
+      case .sha512Digest:
+        return Data(hashFunction!.finalize())
+      }
+    }
+  }
+}
+
+struct StartUpdateProcess: REPLCommand, REPLClassSpecificCommand {
+  static let name = ["start-update-process"]
+  static let summary = "Start firmware update process"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaFirmwareManager.classIdentification]
+  }
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let firmwareManager = context.currentObject as! OcaFirmwareManager
+    try await firmwareManager.startUpdateProcess()
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
+  static let name = ["begin-active-component-update", "update-component"]
+  static let summary = "Update a firmware component"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaFirmwareManager.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 2 }
+
+  @REPLCommandArgument
+  var component: UInt!
+
+  @REPLCommandArgument
+  var url: URL!
+
+  @REPLCommandArgument
+  var verifyMethod: String?
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    guard let component = UInt16(exactly: component) else {
+      throw Ocp1Error.status(.parameterOutOfRange)
+    }
+
+    let chunkSize = if await context.connection.isDatagram {
+      1024
+    } else {
+      1024 * 64
+    }
+    let helper = try await FirmwareManagerHelper(
+      component: component,
+      url: url,
+      method: verifyMethod,
+      chunkSize: chunkSize
+    )
+    let firmwareManager = context.currentObject as! OcaFirmwareManager
+
+    try await firmwareManager.beginActiveImageUpdate(component: component)
+    do {
+      var sequenceNumber: OcaUint32 = 1
+      try await helper.process { chunk in
+        try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
+        sequenceNumber += 1
+      }
+
+      if let verifyData = try await helper.verifyData {
+        try await firmwareManager.verifyImage(OcaBlob(verifyData))
+      }
+    } catch {
+      try? await firmwareManager.endActiveImageUpdate()
+      throw error
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+// TODO: implement beginPassiveComponentUpdate()
+
+struct EndUpdateProcess: REPLCommand, REPLClassSpecificCommand {
+  static let name = ["end-update-process"]
+  static let summary = "End firmware update process"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaFirmwareManager.classIdentification]
+  }
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let firmwareManager = context.currentObject as! OcaFirmwareManager
+    try await firmwareManager.endUpdateProcess()
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}

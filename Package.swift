@@ -20,6 +20,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-crypto", from: "3.10.0"),
     .package(url: "https://github.com/objecthub/swift-commandlinekit", branch: "master"),
   ],
   targets: [
@@ -31,6 +32,7 @@ let package = Package(
         .product(name: "Algorithms", package: "swift-algorithms"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "Logging", package: "swift-log"),
+        .product(name: "Crypto", package: "swift-crypto"),
         .product(name: "CommandLineKit", package: "swift-commandlinekit"),
       ]
     ),

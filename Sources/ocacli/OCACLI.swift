@@ -71,6 +71,7 @@ final class OCACLI: Command {
     commands.register(AddMember.self)
     commands.register(AddPreSharedKey.self)
     commands.register(AddSignalPath.self)
+    commands.register(BeginActiveComponentUpdate.self)
     commands.register(ChangePreSharedKey.self)
     commands.register(ChangePath.self)
     commands.register(ClearCache.self)
@@ -94,6 +95,7 @@ final class OCACLI: Command {
     commands.register(DumpSparseRolePathCache.self)
     #endif
     commands.register(EnableControlSecurity.self)
+    commands.register(EndUpdateProcess.self)
     commands.register(Exit.self)
     commands.register(FindActionObjectsByLabelRecursive.self)
     commands.register(FindActionObjectsByRole.self)
@@ -124,6 +126,7 @@ final class OCACLI: Command {
     commands.register(SetOutputPortName.self)
     commands.register(SetNominalMediaClockRate.self)
     commands.register(Show.self)
+    commands.register(StartUpdateProcess.self)
     commands.register(Statistics.self)
     commands.register(Subscribe.self)
     commands.register(Unlock.self)
