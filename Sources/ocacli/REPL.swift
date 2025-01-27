@@ -189,6 +189,8 @@ final class REPLCommandRegistry {
         value.wrappedValue = Double(fromString: argumentValue)
       case let value as REPLCommandArgument<OcaRoot>:
         value.wrappedValue = try await context.resolve(rolePath: argumentValue)
+      case let value as REPLCommandArgument<URL>:
+        value.wrappedValue = URL(string: argumentValue)
       default:
         throw Ocp1Error.status(.parameterError)
       }
