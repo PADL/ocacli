@@ -72,6 +72,7 @@ final class OCACLI: Command {
     commands.register(AddPreSharedKey.self)
     commands.register(AddSignalPath.self)
     commands.register(BeginActiveComponentUpdate.self)
+    commands.register(BeginPassiveComponentUpdate.self)
     commands.register(ChangePreSharedKey.self)
     commands.register(ChangePath.self)
     commands.register(ClearCache.self)

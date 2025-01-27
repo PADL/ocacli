@@ -96,19 +96,19 @@ actor FirmwareManagerHelper {
   }
 
   func process(_ body: (_: [UInt8]) async throws -> ()) async throws {
-#if canImport(FoundationNetworking)
+    #if canImport(FoundationNetworking)
     let (data, _) = try await URLSession.shared.data(from: url)
     for chunk in Array(data).chunks(ofCount: chunkSize) {
       try await body(Array(chunk))
       hashFunction?.update(data: chunk)
     }
-#else
+    #else
     let (bytes, _) = try await URLSession.shared.bytes(from: url)
     for try await chunk in bytes.chunks(ofCount: chunkSize) {
       try await body(chunk)
       hashFunction?.update(data: chunk)
     }
-#endif
+    #endif
   }
 
   var verifyData: Data? {
@@ -209,7 +209,54 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-// TODO: implement beginPassiveComponentUpdate()
+struct BeginPassiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
+  static let name = ["begin-passive-component-update"]
+  static let summary = "Update a firmware component from a remote server"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaFirmwareManager.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 3 }
+
+  @REPLCommandArgument
+  var component: UInt!
+
+  @REPLCommandArgument
+  var serverAddress: String!
+
+  @REPLCommandArgument
+  var updateFileName: String!
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    guard let component = UInt16(exactly: component) else {
+      throw Ocp1Error.status(.parameterOutOfRange)
+    }
+
+    let firmwareManager = context.currentObject as! OcaFirmwareManager
+    let serverPort = serverAddress.split(separator: ":", maxSplits: 2)
+    let serverAddress: Ocp1NetworkAddress
+    if serverPort.count > 1 {
+      guard let port = UInt16(serverPort[1]) else {
+        throw Ocp1Error.status(.parameterOutOfRange)
+      }
+      serverAddress = Ocp1NetworkAddress(address: String(serverPort[0]), port: port)
+    } else {
+      serverAddress = Ocp1NetworkAddress(address: String(serverPort[0]), port: 0)
+    }
+
+    try await firmwareManager.beginPassiveComponentUpdate(
+      component: component,
+      serverAddress: serverAddress
+        .networkAddress,
+      updateFileName: updateFileName
+    )
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
 
 struct EndUpdateProcess: REPLCommand, REPLClassSpecificCommand {
   static let name = ["end-update-process"]
