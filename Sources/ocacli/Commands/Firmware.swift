@@ -192,19 +192,15 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
     let firmwareManager = context.currentObject as! OcaFirmwareManager
 
     try await firmwareManager.beginActiveImageUpdate(component: component)
-    do {
-      var sequenceNumber: OcaUint32 = 1
-      try await helper.process { chunk in
-        try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
-        sequenceNumber += 1
-      }
 
-      if let verifyData = try await helper.verifyData {
-        try await firmwareManager.verifyImage(OcaBlob(verifyData))
-      }
-    } catch {
-      try? await firmwareManager.endActiveImageUpdate()
-      throw error
+    var sequenceNumber: OcaUint32 = 1
+    try await helper.process { chunk in
+      try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
+      sequenceNumber += 1
+    }
+
+    if let verifyData = try await helper.verifyData {
+      try await firmwareManager.verifyImage(OcaBlob(verifyData))
     }
 
     try await firmwareManager.endActiveImageUpdate()
