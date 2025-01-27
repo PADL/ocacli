@@ -14,9 +14,13 @@
 // limitations under the License.
 //
 
+import Algorithms
 import AsyncAlgorithms
 import Crypto
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import SwiftOCA
 
 actor FirmwareManagerHelper {
@@ -92,12 +96,19 @@ actor FirmwareManagerHelper {
   }
 
   func process(_ body: (_: [UInt8]) async throws -> ()) async throws {
+#if canImport(FoundationNetworking)
+    let (data, _) = try await URLSession.shared.data(from: url)
+    for chunk in Array(data).chunks(ofCount: chunkSize) {
+      try await body(Array(chunk))
+      hashFunction?.update(data: chunk)
+    }
+#else
     let (bytes, _) = try await URLSession.shared.bytes(from: url)
-
     for try await chunk in bytes.chunks(ofCount: chunkSize) {
       try await body(chunk)
       hashFunction?.update(data: chunk)
     }
+#endif
   }
 
   var verifyData: Data? {
