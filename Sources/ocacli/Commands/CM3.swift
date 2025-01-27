@@ -154,7 +154,7 @@ struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
   var minimumRequiredArguments: Int { 1 }
 
   @REPLCommandArgument
-  var nominalRate: OcaFloat32?
+  var nominalRate: OcaFloat32!
 
   func execute(with context: Context) async throws {
     let mediaClock3 = context.currentObject as! OcaMediaClock3
@@ -162,7 +162,7 @@ struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
 
     try await currentRateSubject.setValue(
       context.currentObject,
-      nominalRate!
+      nominalRate
     ) {
       OcaMediaClockRate(nominalRate: $0)
     }
