@@ -381,6 +381,7 @@ extension Data {
       .map { String(chars[$0]) + String(chars[$0 + 1]) }
       .compactMap { UInt8($0, radix: 16) }
 
+    guard bytes.count > 0 else { return nil }
     guard hex.count / bytes.count == 2 else { return nil }
     self.init(bytes)
   }
