@@ -392,29 +392,28 @@ final class Context: @unchecked Sendable {
       object = try await connection.resolve(objectOfUnknownClass: oNo)
     } else if path == "." {
       object = currentObject
-    } else if path == "..", let currentObject = currentObject as? OcaOwnable {
-      let owner = try await currentObject
-        .getOwner(flags: contextFlags.cachedPropertyResolutionFlags)
-      object = try await connection
-        .resolve(object: OcaObjectIdentification(
-          oNo: owner,
-          classIdentification: OcaBlock.classIdentification
-        ))
+    } else if path == ".." {
+      if let currentObject = currentObject as? OcaOwnable {
+        let owner = try await currentObject
+          .getOwner(flags: contextFlags.cachedPropertyResolutionFlags)
+        object = try await connection
+          .resolve(object: OcaObjectIdentification(
+            oNo: owner,
+            classIdentification: OcaBlock.classIdentification
+          ))
+      } else {
+        object = await connection.rootBlock
+      }
     } else {
       let pathComponents = path.pathComponents
-
-      guard let baseObject = await (
-        pathComponents.1 ? connection
-          .rootBlock : currentObject
-      ) as? OcaBlock else {
-        // FIXME: confusing when cd'ing on leaf objects
-        throw Ocp1Error.objectClassMismatch
-      }
+      let baseObject = await pathComponents.1 ? connection.rootBlock : currentObject
 
       if pathComponents.0.isEmpty {
         object = baseObject
-      } else {
+      } else if let baseObject = baseObject as? OcaBlock {
         object = try await resolve(rolePath: pathComponents.0, relativeTo: baseObject)
+      } else {
+        throw Ocp1Error.objectClassMismatch
       }
     }
     guard let object else {
@@ -473,10 +472,15 @@ final class Context: @unchecked Sendable {
   }
 
   func changeCurrentPath(to object: OcaRoot) async throws {
-    let newRolePath = try await object
-      .getRolePath(flags: contextFlags.cachedPropertyResolutionFlags)
+    do {
+      currentObjectPath = try await object
+        .getRolePath(flags: contextFlags.cachedPropertyResolutionFlags)
+    } catch Ocp1Error.objectClassMismatch {
+      let rolePathString = try await object
+        .getRolePathString(flags: contextFlags.cachedPropertyResolutionFlags)
+      currentObjectPath = [rolePathString]
+    }
     currentObject = object
-    currentObjectPath = newRolePath
     await refreshCurrentObjectCompletions()
   }
 
