@@ -238,14 +238,18 @@ struct BeginPassiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
     let firmwareManager = context.currentObject as! OcaFirmwareManager
     let serverPort = serverAddress.split(separator: ":", maxSplits: 2)
     let serverAddress: Ocp1NetworkAddress
+    let port: UInt16
+
     if serverPort.count > 1 {
-      guard let port = UInt16(serverPort[1]) else {
+      guard let _port = UInt16(serverPort[1]) else {
         throw Ocp1Error.status(.parameterOutOfRange)
       }
-      serverAddress = Ocp1NetworkAddress(address: String(serverPort[0]), port: port)
+      port = _port
     } else {
-      serverAddress = Ocp1NetworkAddress(address: String(serverPort[0]), port: 0)
+      port = 0
     }
+
+    serverAddress = Ocp1NetworkAddress(address: String(serverPort[0]), port: port)
 
     try await firmwareManager.beginPassiveComponentUpdate(
       component: component,
