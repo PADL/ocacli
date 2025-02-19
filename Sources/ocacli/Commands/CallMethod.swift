@@ -38,7 +38,9 @@ struct CallMethod: REPLCommand {
     guard response.statusCode == .ok else {
       throw Ocp1Error.status(response.statusCode)
     }
-    print("0x\(response.parameters.parameterData.hexString)")
+    if !response.parameters.parameterData.isEmpty {
+      print("0x\(response.parameters.parameterData.hexString)")
+    }
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
