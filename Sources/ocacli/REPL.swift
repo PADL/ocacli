@@ -385,4 +385,8 @@ extension Data {
     guard hex.count / bytes.count == 2 else { return nil }
     self.init(bytes)
   }
+
+  var hexString: String {
+    self.map { String(format: "%02hhx", $0) }.joined()
+  }
 }
