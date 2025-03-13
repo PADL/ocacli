@@ -181,7 +181,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
     let chunkSize = if await context.connection.isDatagram {
       1024
     } else {
-      1024 * 64
+      Int(UInt16.max) - 1
     }
     let helper = try await FirmwareManagerHelper(
       component: component,
