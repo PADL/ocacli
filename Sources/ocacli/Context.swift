@@ -220,7 +220,7 @@ enum DeviceEndpointInfo {
 
 final class Context: @unchecked Sendable {
   let connection: Ocp1Connection
-  private let logger: Logger
+  let logger: Logger
 
   // the following variables should only be mutated by the command sink (the async task)
   var contextFlags: ContextFlags
