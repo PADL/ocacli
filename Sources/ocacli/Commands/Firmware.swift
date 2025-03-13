@@ -178,16 +178,11 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
       throw Ocp1Error.status(.parameterOutOfRange)
     }
 
-    let chunkSize = if await context.connection.isDatagram {
-      1024
-    } else {
-      Int(UInt16.max) - 1
-    }
     let helper = try await FirmwareManagerHelper(
       component: component,
       url: url,
       method: verifyMethod,
-      chunkSize: chunkSize
+      chunkSize: 1024
     )
     let firmwareManager = context.currentObject as! OcaFirmwareManager
 
