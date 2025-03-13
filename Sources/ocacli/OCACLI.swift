@@ -58,6 +58,14 @@ final class OCACLI: Command {
   private var help: Bool
   @CommandFlags // Inject the flags object
   private var flags: CommandLineKit.Flags
+  @CommandArgument(
+    short: "t",
+    long: "connection-timeout",
+    description: "Connection timeout (seconds)"
+  )
+  private var connectionTimeout: Int?
+  @CommandArgument(short: "T", long: "response-timeout", description: "Response timeout (seconds)")
+  private var responseTimeout: Int?
 
   private let lineReader = LineReader()
   private let commands = REPLCommandRegistry.shared
@@ -211,7 +219,9 @@ final class OCACLI: Command {
     return try await Context(
       deviceEndpointInfo: deviceEndpointInfo,
       contextFlags: contextFlags,
-      logger: logger
+      logger: logger,
+      connectionTimeout: connectionTimeout != nil ? .seconds(connectionTimeout!) : nil,
+      responseTimeout: responseTimeout != nil ? .seconds(responseTimeout!) : nil
     )
   }
 

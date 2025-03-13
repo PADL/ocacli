@@ -235,12 +235,18 @@ final class Context: @unchecked Sendable {
   init(
     deviceEndpointInfo: DeviceEndpointInfo,
     contextFlags: ContextFlags,
-    logger: Logger
+    logger: Logger,
+    connectionTimeout: Duration? = nil,
+    responseTimeout: Duration? = nil
   ) async throws {
     self.contextFlags = contextFlags
     self.logger = logger
     connection = try await deviceEndpointInfo
-      .getConnection(options: Ocp1ConnectionOptions(flags: self.contextFlags.connectionFlags))
+      .getConnection(options: Ocp1ConnectionOptions(
+        flags: self.contextFlags.connectionFlags,
+        connectionTimeout: connectionTimeout ?? .seconds(2),
+        responseTimeout: responseTimeout ?? .seconds(2)
+      ))
     currentObject = await connection.rootBlock
     try await changeCurrentPath(to: connection.rootBlock)
   }
