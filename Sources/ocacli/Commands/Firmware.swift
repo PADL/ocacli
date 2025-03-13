@@ -174,7 +174,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    guard let component = UInt16(exactly: component) else {
+    guard let component, let component = UInt16(exactly: component) else {
       throw Ocp1Error.status(.parameterOutOfRange)
     }
 
