@@ -264,6 +264,10 @@ final class OCACLI: Command {
     }
   }
 
+  private var isBatchMode: Bool {
+    !commandsToExecute.isEmpty
+  }
+
   private func initCommandSourceStream() -> AsyncStream<CommandTokens>.Continuation {
     var continuation: AsyncStream<CommandTokens>.Continuation!
     commandSourceStream = AsyncStream<CommandTokens> {
@@ -282,6 +286,9 @@ final class OCACLI: Command {
             context.print(error)
           }
           commandDidComplete.signal()
+          if isBatchMode {
+            try await Exit().execute(with: context)
+          }
         }
       }
       $0.onTermination = { @Sendable _ in
@@ -313,10 +320,10 @@ final class OCACLI: Command {
 
     signal(SIGPIPE, SIG_IGN)
 
-    if commandsToExecute.isEmpty {
-      try runInteractiveMode()
-    } else {
+    if isBatchMode {
       try runBatchMode(commandsToExecute)
+    } else {
+      try runInteractiveMode()
     }
     dispatchMain()
   }
