@@ -294,11 +294,9 @@ final class OCACLI: Command {
             try await executeCommand(context: context, tokens: tokens)
           } catch {
             context.print(error)
+            if isBatchMode { try await Exit().execute(with: context) }
           }
           commandDidComplete.signal()
-          if isBatchMode {
-            try await Exit().execute(with: context)
-          }
         }
       }
       $0.onTermination = { @Sendable _ in
