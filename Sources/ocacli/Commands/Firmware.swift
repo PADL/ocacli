@@ -21,7 +21,10 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import OcaFirmwareImageContainer
 import SwiftOCA
+
+private let _defaultChunkSize = 1024
 
 actor FirmwareManagerHelper {
   enum VerifyImageMethod {
@@ -182,7 +185,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
       component: component,
       url: url,
       method: verifyMethod,
-      chunkSize: 1024
+      chunkSize: _defaultChunkSize
     )
     let firmwareManager = context.currentObject as! OcaFirmwareManager
 
@@ -269,6 +272,53 @@ struct EndUpdateProcess: REPLCommand, REPLClassSpecificCommand {
 
   func execute(with context: Context) async throws {
     let firmwareManager = context.currentObject as! OcaFirmwareManager
+    try await firmwareManager.endUpdateProcess()
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
+  static let name = ["update-firmware-container"]
+  static let summary = "Update firmware from container file"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaFirmwareManager.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 1 }
+
+  @REPLCommandArgument
+  var url: URL!
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    guard url.isFileURL else {
+      throw Ocp1Error.status(.parameterOutOfRange)
+    }
+
+    let firmwareManager = context.currentObject as! OcaFirmwareManager
+    let reader = try await OcaFirmwareImageContainerFileReader.decode(file: url.path)
+
+    try await firmwareManager.startUpdateProcess()
+
+    for index in 0..<reader.componentCount {
+      try await reader.withComponent(at: index) { componentDescriptor, image, verifyData in
+        guard !componentDescriptor.flags.contains(.local) else { return }
+        try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
+
+        var sequenceNumber: OcaUint32 = 1
+        for chunk in Array(image).chunks(ofCount: _defaultChunkSize) {
+          try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
+          sequenceNumber += 1
+        }
+
+        try await firmwareManager.verifyImage(OcaBlob(verifyData))
+        try await firmwareManager.endActiveImageUpdate()
+      }
+    }
+
     try await firmwareManager.endUpdateProcess()
   }
 

@@ -16,6 +16,7 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/PADL/SwiftOCA", branch: "main"),
+    .package(url: "https://github.com/PADL/OcaFirmwareImageContainer", branch: "main"),
     .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0"),
@@ -28,6 +29,7 @@ let package = Package(
       name: "ocacli",
       dependencies: [
         "SwiftOCA",
+        "OcaFirmwareImageContainer",
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "Algorithms", package: "swift-algorithms"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),

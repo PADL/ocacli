@@ -110,6 +110,7 @@ final class OCACLI: Command {
     commands.register(FindActionObjectsByLabelRecursive.self)
     commands.register(FindActionObjectsByRole.self)
     commands.register(FindActionObjectsByRoleRecursive.self)
+    commands.register(FirmwareImageContainerUpdate.self)
     commands.register(Flags.self)
     commands.register(Get.self)
     commands.register(GetConnectorStatus.self)
