@@ -291,6 +291,9 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
   @REPLCommandArgument
   var url: URL!
 
+  @REPLCommandArgument
+  var component: OcaComponent?
+
   init() {}
 
   func execute(with context: Context) async throws {
@@ -306,6 +309,8 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
     for index in 0..<reader.componentCount {
       try await reader.withComponent(at: index) { componentDescriptor, image, verifyData in
         guard !componentDescriptor.flags.contains(.local) else { return }
+        if let component, componentDescriptor.component != component { return }
+
         try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
 
         var sequenceNumber: OcaUint32 = 1
