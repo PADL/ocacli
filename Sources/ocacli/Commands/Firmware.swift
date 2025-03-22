@@ -297,10 +297,6 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    guard url.isFileURL else {
-      throw Ocp1Error.status(.parameterOutOfRange)
-    }
-
     let firmwareManager = context.currentObject as! OcaFirmwareManager
     let reader = try await OcaFirmwareImageContainerURLReader.decode(url: url)
 
