@@ -302,22 +302,20 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
 
     try await firmwareManager.startUpdateProcess()
 
-    for index in 0..<reader.componentCount {
-      try await reader.withComponent(at: index) { componentDescriptor, image, verifyData in
-        guard !componentDescriptor.flags.contains(.local) else { return }
-        if let component, componentDescriptor.component != component { return }
+    try await reader.withComponents { componentDescriptor, image, verifyData in
+      guard !componentDescriptor.flags.contains(.local) else { return }
+      if let component, componentDescriptor.component != component { return }
 
-        try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
+      try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
 
-        var sequenceNumber: OcaUint32 = 1
-        for chunk in Array(image).chunks(ofCount: _defaultChunkSize) {
-          try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
-          sequenceNumber += 1
-        }
-
-        try await firmwareManager.verifyImage(OcaBlob(verifyData))
-        try await firmwareManager.endActiveImageUpdate()
+      var sequenceNumber: OcaUint32 = 1
+      for chunk in Array(image).chunks(ofCount: _defaultChunkSize) {
+        try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
+        sequenceNumber += 1
       }
+
+      try await firmwareManager.verifyImage(OcaBlob(verifyData))
+      try await firmwareManager.endActiveImageUpdate()
     }
 
     try await firmwareManager.endUpdateProcess()
