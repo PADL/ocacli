@@ -302,7 +302,7 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
     }
 
     let firmwareManager = context.currentObject as! OcaFirmwareManager
-    let reader = try await OcaFirmwareImageContainerFileReader.decode(file: url.path)
+    let reader = try await OcaFirmwareImageContainerURLReader.decode(url: url)
 
     try await firmwareManager.startUpdateProcess()
 
