@@ -300,6 +300,15 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
     let firmwareManager = context.currentObject as! OcaFirmwareManager
     let reader = try await OcaFirmwareImageContainerURLReader.decode(url: url)
 
+    let deviceManager = await context.connection.deviceManager
+    let canApplyFirmwareUpdate = try await deviceManager.$modelGUID.getValue(
+      deviceManager,
+      flags: context.contextFlags.propertyResolutionFlags
+    ) { modelGUID in
+      modelGUID.mfrCode == reader.header.modelGUID.mfrCode &&
+        modelGUID.modelCode & reader.header.modelCodeMask == reader.header.modelGUID.modelCode
+    }
+    guard canApplyFirmwareUpdate else { throw Ocp1Error.status(.deviceError) }
     try await firmwareManager.startUpdateProcess()
 
     try await reader.withComponents { componentDescriptor, image, verifyData in
