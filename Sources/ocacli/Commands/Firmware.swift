@@ -305,8 +305,7 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
       deviceManager,
       flags: context.contextFlags.propertyResolutionFlags
     ) { modelGUID in
-      modelGUID.mfrCode == reader.header.modelGUID.mfrCode &&
-        modelGUID.modelCode & reader.header.modelCodeMask == reader.header.modelGUID.modelCode
+      reader.header.models.contains(modelGUID)
     }
     guard canApplyFirmwareUpdate else { throw Ocp1Error.status(.deviceError) }
     try await firmwareManager.startUpdateProcess()
