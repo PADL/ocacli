@@ -127,15 +127,9 @@ struct GetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
 
   func execute(with context: Context) async throws {
     let mediaClock3 = context.currentObject as! OcaMediaClock3
-    let currentRateSubject = mediaClock3.$currentRate as any OcaPropertySubjectRepresentable
 
-    try? await currentRateSubject.getValue(
-      context.currentObject,
-      flags: context.contextFlags.propertyResolutionFlags
-    ) { currentRate in
-      let nominalRate = (currentRate as! OcaMediaClockRate).nominalRate
-      print("\(nominalRate)")
-    }
+    let (nominalRate, _) = try await mediaClock3.getCurrentRate()
+    print("\(nominalRate)")
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
@@ -156,15 +150,18 @@ struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
   @REPLCommandArgument
   var nominalRate: OcaFloat32!
 
+  @REPLCommandArgument
+  var timeSourceONo: OcaONo?
+
   func execute(with context: Context) async throws {
     let mediaClock3 = context.currentObject as! OcaMediaClock3
-    let currentRateSubject = mediaClock3.$currentRate as any OcaPropertySubjectRepresentable
+    let mediaClockRate = OcaMediaClockRate(nominalRate: nominalRate)
 
-    try await currentRateSubject.setValue(
-      context.currentObject,
-      nominalRate
-    ) {
-      OcaMediaClockRate(nominalRate: $0)
+    if let timeSourceONo {
+      try await mediaClock3.set(currentRate: mediaClockRate, timeSourceONo: timeSourceONo)
+    } else {
+      let (_, timeSourceONo) = try await mediaClock3.getCurrentRate()
+      try await mediaClock3.set(currentRate: mediaClockRate, timeSourceONo: timeSourceONo)
     }
   }
 
