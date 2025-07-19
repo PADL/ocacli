@@ -95,7 +95,7 @@ extension OcaPropertySubjectRepresentable {
 extension OcaRoot {
   func getValueReplString(
     context: Context,
-    keyPath: PartialKeyPath<OcaRoot>
+    keyPath: AnyKeyPath,
   ) async throws -> String? {
     if String(describing: keyPath) == "\\OcaRoot._objectNumber" {
       return String(format: "0x%x", objectNumber)
@@ -112,7 +112,7 @@ extension OcaRoot {
 
   func setValueReplString(
     context: Context,
-    keyPath: PartialKeyPath<OcaRoot>,
+    keyPath: AnyKeyPath,
     _ replString: String
   ) async throws {
     let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
@@ -129,8 +129,8 @@ extension OcaRoot {
 }
 
 extension OcaRoot {
-  func propertyKeyPath(for name: String) -> PartialKeyPath<OcaRoot>? {
-    allPropertyKeyPaths.filter {
+  func propertyKeyPath(for name: String) async -> AnyKeyPath? {
+    await allPropertyKeyPaths.filter {
       $0.key == name && self[keyPath: $0.value] is any OcaPropertyRepresentable
     }.first?.value
   }

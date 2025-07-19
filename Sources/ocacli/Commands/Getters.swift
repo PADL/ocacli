@@ -32,7 +32,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     context: Context,
     object: OcaRoot,
     property: String,
-    keyPath: PartialKeyPath<OcaRoot>
+    keyPath: AnyKeyPath,
   ) async throws -> (String, String?) {
     let value = try await object.getValueReplString(
       context: context,
@@ -49,7 +49,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
       of: (String, String?).self,
       returning: [(String, String?)].self
     ) { taskGroup in
-      for property in object.allPropertyKeyPaths {
+      for property in await object.allPropertyKeyPaths {
         taskGroup.addTask {
           try await show(
             context: context,
@@ -82,7 +82,7 @@ struct Get: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
+    guard let keyPath = await context.currentObject.propertyKeyPath(for: propertyName) else {
       throw Ocp1Error.status(.parameterError)
     }
 
@@ -94,7 +94,7 @@ struct Get: REPLCommand {
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
-    context.currentObject.allPropertyKeyPaths.map(\.key)
+    context.currentObject.allPropertyKeyPathsUncached.map(\.key)
   }
 }
 
