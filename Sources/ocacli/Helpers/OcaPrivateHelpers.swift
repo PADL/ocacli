@@ -127,11 +127,3 @@ extension OcaRoot {
     }
   }
 }
-
-extension OcaRoot {
-  func propertyKeyPath(for name: String) async -> AnyKeyPath? {
-    await allPropertyKeyPaths.filter {
-      $0.key == name && self[keyPath: $0.value] is any OcaPropertyRepresentable
-    }.first?.value
-  }
-}
