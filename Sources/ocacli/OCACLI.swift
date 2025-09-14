@@ -325,7 +325,7 @@ final class OCACLI: Command {
   }
 
   func run() throws {
-    LoggingSystem.bootstrap(StreamLogHandler.standardError)
+    LoggingSystem.bootstrap { StreamLogHandler.standardError(label: $0) }
 
     signal(SIGPIPE, SIG_IGN)
 
