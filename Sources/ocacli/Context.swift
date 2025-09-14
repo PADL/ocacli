@@ -165,6 +165,9 @@ enum DeviceEndpointInfo {
     -> Ocp1Connection
   {
     var connection: Ocp1Connection?
+    guard let hostname else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
     let host = Host(name: hostname)
     var savedError: Error?
 
