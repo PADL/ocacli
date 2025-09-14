@@ -146,7 +146,9 @@ final class REPLCommandRegistry {
 
   func command(from arguments: [String], context: Context) async throws -> REPLCommand {
     var arguments = arguments
-    precondition(arguments.count > 0)
+    guard !arguments.isEmpty else {
+      throw Ocp1Error.status(.parameterError)
+    }
     guard let type = replCommands[arguments[0]] else {
       throw Ocp1Error.status(.parameterError)
     }
