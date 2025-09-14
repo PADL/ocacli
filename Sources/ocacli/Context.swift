@@ -471,10 +471,10 @@ final class Context: @unchecked Sendable {
   }
 
   func popPath() async throws {
-    guard pathStack.count > 0 else {
+    guard let lastObject = pathStack.popLast() else {
       throw Ocp1Error.noInitialValue
     }
-    try await changeCurrentPath(to: pathStack.popLast()!)
+    try await changeCurrentPath(to: lastObject)
   }
 
   func changeCurrentPath(to object: OcaRoot) async throws {
