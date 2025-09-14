@@ -118,6 +118,20 @@ enum DeviceEndpointInfo {
   case tcp(String, UInt16)
   case udp(String, UInt16)
   case path(String)
+  case datagramPath(String)
+
+  var isDatagram: Bool {
+    switch self {
+    case .tcp:
+      fallthrough
+    case .path:
+      false
+    case .udp:
+      fallthrough
+    case .datagramPath:
+      true
+    }
+  }
 
   var hostname: String? {
     switch self {
@@ -126,6 +140,8 @@ enum DeviceEndpointInfo {
     case let .udp(hostname, _):
       hostname
     case .path:
+      nil
+    case .datagramPath:
       nil
     }
   }
@@ -138,12 +154,16 @@ enum DeviceEndpointInfo {
       port
     case .path:
       0
+    case .datagramPath:
+      0
     }
   }
 
   var path: String? {
     switch self {
     case let .path(path):
+      path
+    case let .datagramPath(path):
       path
     default:
       nil
@@ -157,6 +177,8 @@ enum DeviceEndpointInfo {
     case .udp:
       return try await getRemoteConnection(options: options)
     case .path:
+      return try await getLocalConnection(options: options)
+    case .datagramPath:
       return try await getLocalConnection(options: options)
     }
   }
@@ -185,7 +207,7 @@ enum DeviceEndpointInfo {
             deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
           }
         }
-        if case .udp = self {
+        if isDatagram {
           connection = try await Ocp1UDPConnection(
             deviceAddress: deviceAddressData,
             options: options
@@ -215,7 +237,19 @@ enum DeviceEndpointInfo {
   }
 
   private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
-    let connection = try await Ocp1TCPConnection(path: path!, options: options)
+    guard let path else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
+#if canImport(IORing)
+    let connection: Ocp1Connection = if isDatagram {
+      try await Ocp1IORingDomainSocketDatagramConnection(path: path, options: options)
+    } else {
+      try await Ocp1TCPConnection(path: path, options: options)
+    }
+#else
+    guard !isDatagram else { Errno.addressFamilyNotSupported }
+    let connection = try await Ocp1TCPConnection(path: path, options: options)
+#endif
     try await connection.connect()
     return connection
   }
@@ -518,16 +552,20 @@ final class Context: @unchecked Sendable {
     ) else { return }
 
     Task {
-      let emitter = await connection.resolve(cachedObject: event.emitterONo)
-      let emitterPath: String = if let emitter {
-        try await emitter
-          .getRolePathString(flags: contextFlags.cachedPropertyResolutionFlags)
-      } else {
-        event.emitterONo.oNoString
+      do {
+        let emitter = await connection.resolve(cachedObject: event.emitterONo)
+        let emitterPath: String = if let emitter {
+          try await emitter
+            .getRolePathString(flags: contextFlags.cachedPropertyResolutionFlags)
+        } else {
+          event.emitterONo.oNoString
+        }
+        logger.info(
+          "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
+        )
+      } catch {
+        logger.error("Failed to process property event: \(error)")
       }
-      logger.info(
-        "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
-      )
     }
   }
 }
