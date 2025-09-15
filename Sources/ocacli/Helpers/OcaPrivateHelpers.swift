@@ -95,7 +95,7 @@ extension OcaPropertySubjectRepresentable {
 extension OcaRoot {
   func getValueReplString(
     context: Context,
-    keyPath: AnyKeyPath,
+    keyPath: AnyKeyPath
   ) async throws -> String? {
     if String(describing: keyPath) == "\\OcaRoot._objectNumber" {
       return String(format: "0x%x", objectNumber)
