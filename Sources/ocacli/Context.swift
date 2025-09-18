@@ -18,6 +18,7 @@ import CommandLineKit
 import Foundation
 import Logging
 import SwiftOCA
+import struct SystemPackage.Errno
 
 enum ContextFlagsNames: Int, CaseIterable {
   /// cache property lookups
@@ -247,7 +248,7 @@ enum DeviceEndpointInfo {
       try await Ocp1TCPConnection(path: path, options: options)
     }
 #else
-    guard !isDatagram else { Errno.addressFamilyNotSupported }
+    guard !isDatagram else { throw Errno.addressFamilyNotSupported }
     let connection = try await Ocp1TCPConnection(path: path, options: options)
 #endif
     try await connection.connect()
