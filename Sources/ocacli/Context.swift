@@ -241,16 +241,16 @@ enum DeviceEndpointInfo {
     guard let path else {
       throw Ocp1Error.serviceResolutionFailed
     }
-#if canImport(IORing)
+    #if canImport(IORing)
     let connection: Ocp1Connection = if isDatagram {
       try await Ocp1IORingDomainSocketDatagramConnection(path: path, options: options)
     } else {
       try await Ocp1TCPConnection(path: path, options: options)
     }
-#else
+    #else
     guard !isDatagram else { throw Errno.addressFamilyNotSupported }
     let connection = try await Ocp1TCPConnection(path: path, options: options)
-#endif
+    #endif
     try await connection.connect()
     return connection
   }

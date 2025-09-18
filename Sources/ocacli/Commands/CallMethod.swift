@@ -17,14 +17,17 @@
 import Foundation
 import SwiftOCA
 
-struct CallMethod: REPLCommand {
+struct CallMethod: REPLCommand, REPLOptionalArguments {
   static let name = ["call-method"]
   static let summary = "Call an arbitrary method on the current object"
+
+  var minimumRequiredArguments: Int { 1 }
 
   @REPLCommandArgument
   var methodID: String!
 
-  // TODO: add support for arguments
+  @REPLCommandArgument
+  var parameterData: Data?
 
   init() {}
 
@@ -32,8 +35,8 @@ struct CallMethod: REPLCommand {
     let methodID = try OcaMethodID(unsafeString: methodID)
     let response = try await context.currentObject.sendCommandRrq(
       methodID: methodID,
-      parameterCount: 0,
-      parameterData: .init()
+      parameterCount: parameterData != nil ? 1 : 0,
+      parameterData: parameterData ?? .init()
     )
     guard response.statusCode == .ok else {
       throw Ocp1Error.status(response.statusCode)

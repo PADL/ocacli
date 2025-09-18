@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024 PADL Software Pty Ltd
+// Copyright (c) 2024-2025 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -193,6 +193,10 @@ final class REPLCommandRegistry {
         value.wrappedValue = try await context.resolve(rolePath: argumentValue)
       case let value as REPLCommandArgument<URL>:
         value.wrappedValue = URL(string: argumentValue)
+      case let value as REPLCommandArgument<Data>:
+        value.wrappedValue = try Data(fromHexEncodedString: argumentValue)
+      case let value as REPLCommandArgument<[UInt8]>:
+        value.wrappedValue = try [UInt8](fromHexEncodedString: argumentValue)
       default:
         throw Ocp1Error.status(.parameterError)
       }
@@ -357,6 +361,29 @@ extension Bool: REPLStringInitializable {
 extension OcaObjectIdentification: REPLStringInitializable {
   init(context: Context, object: OcaRoot, _ replString: String) async throws {
     self = try await context.resolve(rolePath: replString).objectIdentification
+  }
+}
+
+extension Data: REPLStringInitializable {
+  init(fromHexEncodedString stringValue: String) throws {
+    guard stringValue.lowercased().hasPrefix("0x"),
+          let decoded = Data(hex: String(stringValue.dropFirst(2)))
+    else { throw Ocp1Error.status(.badFormat) }
+    self = decoded
+  }
+
+  init(context: Context, object: OcaRoot, _ replString: String) async throws {
+    try self.init(fromHexEncodedString: replString)
+  }
+}
+
+extension [UInt8]: REPLStringInitializable {
+  init(fromHexEncodedString stringValue: String) throws {
+    self = try Array(Data(fromHexEncodedString: stringValue))
+  }
+
+  init(context: Context, object: OcaRoot, _ replString: String) async throws {
+    try self.init(fromHexEncodedString: replString)
   }
 }
 
