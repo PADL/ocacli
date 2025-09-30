@@ -66,6 +66,12 @@ final class OCACLI: Command {
   private var connectionTimeout: Int?
   @CommandArgument(short: "T", long: "response-timeout", description: "Response timeout (seconds)")
   private var responseTimeout: Int?
+  @CommandArgument(
+    short: "B",
+    long: "batch-size",
+    description: "Request message batch size (bytes)"
+  )
+  private var batchSize: Int?
 
   private let lineReader = LineReader()
   private let commands = REPLCommandRegistry.shared
@@ -229,7 +235,8 @@ final class OCACLI: Command {
       contextFlags: contextFlags,
       logger: logger,
       connectionTimeout: connectionTimeout != nil ? .seconds(connectionTimeout!) : nil,
-      responseTimeout: responseTimeout != nil ? .seconds(responseTimeout!) : nil
+      responseTimeout: responseTimeout != nil ? .seconds(responseTimeout!) : nil,
+      batchSize: batchSize
     )
   }
 

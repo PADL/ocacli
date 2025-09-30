@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024 PADL Software Pty Ltd
+// Copyright (c) 2024-2025 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -275,7 +275,8 @@ final class Context: @unchecked Sendable {
     contextFlags: ContextFlags,
     logger: Logger,
     connectionTimeout: Duration? = nil,
-    responseTimeout: Duration? = nil
+    responseTimeout: Duration? = nil,
+    batchSize: Int? = nil
   ) async throws {
     self.contextFlags = contextFlags
     self.logger = logger
@@ -283,7 +284,8 @@ final class Context: @unchecked Sendable {
       .getConnection(options: Ocp1ConnectionOptions(
         flags: self.contextFlags.connectionFlags,
         connectionTimeout: connectionTimeout ?? .seconds(2),
-        responseTimeout: responseTimeout ?? .seconds(2)
+        responseTimeout: responseTimeout ?? .seconds(2),
+        batchingOptions: batchSize != nil ? .init(batchSize: OcaUint16(batchSize!)) : nil
       ))
     currentObject = await connection.rootBlock
     try await changeCurrentPath(to: connection.rootBlock)
