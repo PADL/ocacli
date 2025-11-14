@@ -103,7 +103,7 @@ struct ApplyParameterData: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
 }
 
 struct ApplyPatch: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-  static let name = ["apply-param-data-set"]
+  static let name = ["apply-patch"]
   static let summary = "Apply parameter data set"
 
   static var supportedClasses: [OcaClassIdentification] {
