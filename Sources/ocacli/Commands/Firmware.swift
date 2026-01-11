@@ -155,7 +155,7 @@ struct StartUpdateProcess: REPLCommand, REPLClassSpecificCommand {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
+struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOptionalArguments {
   static let name = ["begin-active-component-update", "update-component"]
   static let summary = "Update a firmware component"
 
@@ -207,7 +207,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-struct BeginPassiveComponentUpdate: REPLCommand, REPLClassSpecificCommand {
+struct BeginPassiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOptionalArguments {
   static let name = ["begin-passive-component-update"]
   static let summary = "Update a firmware component from a remote server"
 
@@ -278,7 +278,7 @@ struct EndUpdateProcess: REPLCommand, REPLClassSpecificCommand {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand {
+struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPLOptionalArguments {
   static let name = ["update-firmware-container"]
   static let summary = "Update firmware from container file"
 
