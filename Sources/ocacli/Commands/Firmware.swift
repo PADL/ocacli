@@ -99,19 +99,28 @@ actor FirmwareManagerHelper {
   }
 
   func process(_ body: (_: [UInt8]) async throws -> ()) async throws {
-    #if canImport(FoundationNetworking)
-    let (data, _) = try await URLSession.shared.data(from: url)
-    for chunk in Array(data).chunks(ofCount: chunkSize) {
-      try await body(Array(chunk))
-      hashFunction?.update(data: chunk)
+    func processData(_ data: Data) async throws {
+      for chunk in Array(data).chunks(ofCount: chunkSize) {
+        try await body(Array(chunk))
+        hashFunction?.update(data: chunk)
+      }
     }
-    #else
-    let (bytes, _) = try await URLSession.shared.bytes(from: url)
-    for try await chunk in bytes.chunks(ofCount: chunkSize) {
-      try await body(chunk)
-      hashFunction?.update(data: chunk)
+
+    if url.isFileURL {
+      let data = try Data(contentsOf: url)
+      try await processData(data)
+    } else {
+      #if canImport(FoundationNetworking)
+      let (data, _) = try await URLSession.shared.data(from: url)
+      try await processData(data)
+      #else
+      let (bytes, _) = try await URLSession.shared.bytes(from: url)
+      for try await chunk in bytes.chunks(ofCount: chunkSize) {
+        try await body(chunk)
+        hashFunction?.update(data: chunk)
+      }
+      #endif
     }
-    #endif
   }
 
   var verifyData: Data? {
