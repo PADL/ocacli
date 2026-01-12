@@ -167,7 +167,7 @@ final class REPLCommandRegistry {
       guard child.value is any REPLCommandArgumentMarker else { continue }
 
       if argumentIndex >= arguments.count {
-        if let minimumRequiredArguments, arguments.count <= minimumRequiredArguments {
+        if let minimumRequiredArguments, arguments.count >= minimumRequiredArguments {
           break
         } else {
           throw Ocp1Error.status(.parameterOutOfRange)
