@@ -32,7 +32,7 @@ struct Show: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
     context: Context,
     object: OcaRoot,
     property: String,
-    keyPath: AnyKeyPath,
+    keyPath: AnyKeyPath
   ) async throws -> (String, String?) {
     let value = try await object.getValueReplString(
       context: context,
