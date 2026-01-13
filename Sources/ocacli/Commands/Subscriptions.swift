@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024 PADL Software Pty Ltd
+// Copyright (c) 2024-2026 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,15 @@ import SwiftOCA
 
 struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
   static let name = ["subscribe"]
-  static let summary = "Add a property event subscription"
+  static let summary = "Add an event subscription"
 
   var minimumRequiredArguments: Int { 0 }
 
   @REPLCommandArgument
   var object: OcaRoot!
+
+  @REPLCommandArgument
+  var eventID: String!
 
   init() {}
 
@@ -32,7 +35,8 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
     let object = object ?? context.currentObject
     guard context.subscriptions[object.objectNumber] == nil
     else { throw Ocp1Error.alreadySubscribedToEvent }
-    let event = OcaEvent(emitterONo: object.objectNumber, eventID: OcaPropertyChangedEventID)
+    let eventID = eventID != nil ? OcaEventID(eventID) : OcaPropertyChangedEventID
+    let event = OcaEvent(emitterONo: object.objectNumber, eventID: eventID)
     let cancellable = try await context.connection.addSubscription(
       label: "com.padl.ocacli",
       event: event,
@@ -44,7 +48,7 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
 
 struct Unsubscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable {
   static let name = ["unsubscribe"]
-  static let summary = "Remove a property event subscription"
+  static let summary = "Remove an event subscription"
 
   var minimumRequiredArguments: Int { 0 }
 
