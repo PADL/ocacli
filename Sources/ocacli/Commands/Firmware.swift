@@ -301,7 +301,7 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
   var url: URL!
 
   @REPLCommandArgument
-  var component: OcaComponent?
+  var component: UInt?
 
   init() {}
 
@@ -321,7 +321,8 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
 
     try await reader.withComponents { componentDescriptor, image, verifyData in
       guard !componentDescriptor.flags.contains(.local) else { return }
-      if let component, componentDescriptor.component != component { return }
+      if let component, let component = OcaComponent(exactly: component),
+         componentDescriptor.component != component { return }
 
       try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
 
