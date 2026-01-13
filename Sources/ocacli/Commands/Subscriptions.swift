@@ -40,7 +40,7 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
     let cancellable = try await context.connection.addSubscription(
       label: "com.padl.ocacli",
       event: event,
-      callback: context.onPropertyEvent
+      callback: context.onEvent
     )
     context.subscriptions[object.objectNumber] = cancellable
   }

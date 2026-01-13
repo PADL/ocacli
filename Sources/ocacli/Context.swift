@@ -553,12 +553,13 @@ final class Context: @unchecked Sendable {
   }
 
   @Sendable
-  func onPropertyEvent(event: OcaEvent, eventData data: Data) {
+  func onEvent(event: OcaEvent, eventData data: Data) {
     let decoder = Ocp1Decoder()
-    guard let propertyID = try? decoder.decode(
-      OcaPropertyID.self,
-      from: data
-    ) else { return }
+    var propertyID: OcaPropertyID?
+
+    if event.eventID == OcaPropertyChangedEventID {
+      propertyID = try? decoder.decode(OcaPropertyID.self, from: data)
+    }
 
     Task {
       do {
@@ -570,7 +571,7 @@ final class Context: @unchecked Sendable {
           event.emitterONo.oNoString
         }
         logger.info(
-          "event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)"
+          "event \(event.eventID) from \(emitterPath) property \(propertyID != nil ? propertyID! : "<unknown>") data \(data)"
         )
       } catch {
         logger.error("Failed to process property event: \(error)")
