@@ -575,9 +575,11 @@ final class Context: @unchecked Sendable {
         } else {
           event.emitterONo.oNoString
         }
-        logger.info(
-          "event \(event.eventID) from \(emitterPath) property \(propertyID != nil ? propertyID! : "<unknown>") data \(data)"
-        )
+        if event.eventID == OcaPropertyChangedEventID, let propertyID {
+          logger.info("event \(event.eventID) from \(emitterPath) property \(propertyID) data \(data)")
+        } else {
+          logger.info("event \(event.eventID) from \(emitterPath) data \(data)")
+        }
       } catch {
         logger.error("Failed to process property event: \(error)")
       }
