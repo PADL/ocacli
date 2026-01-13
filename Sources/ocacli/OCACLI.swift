@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024 PADL Software Pty Ltd
+// Copyright (c) 2024-2026 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -72,6 +72,11 @@ final class OCACLI: Command {
     description: "Request message batch size (bytes)"
   )
   private var batchSize: Int?
+  @CommandArgument(
+    long: "batch-threshold",
+    description: "Request message batch threshold (milliseconds)"
+  )
+  private var batchThreshold: Int?
 
   private let lineReader = LineReader()
   private let commands = REPLCommandRegistry.shared
@@ -241,7 +246,8 @@ final class OCACLI: Command {
       logger: logger,
       connectionTimeout: connectionTimeout != nil ? .seconds(connectionTimeout!) : nil,
       responseTimeout: responseTimeout != nil ? .seconds(responseTimeout!) : nil,
-      batchSize: batchSize
+      batchSize: batchSize != nil ? UInt32(batchSize!) : nil,
+      batchThreshold: batchThreshold != nil ? .milliseconds(batchThreshold!) : nil
     )
   }
 

@@ -276,16 +276,21 @@ final class Context: @unchecked Sendable {
     logger: Logger,
     connectionTimeout: Duration? = nil,
     responseTimeout: Duration? = nil,
-    batchSize: Int? = nil
+    batchSize: UInt32? = nil,
+    batchThreshold: Duration? = nil
   ) async throws {
     self.contextFlags = contextFlags
     self.logger = logger
+    let batchingOptions = try Ocp1ConnectionOptions.BatchingOptions(
+      batchSize: batchSize,
+      batchThreshold: batchThreshold
+    )
     connection = try await deviceEndpointInfo
       .getConnection(options: Ocp1ConnectionOptions(
         flags: self.contextFlags.connectionFlags,
         connectionTimeout: connectionTimeout ?? .seconds(2),
         responseTimeout: responseTimeout ?? .seconds(2),
-        batchingOptions: batchSize != nil ? .init(batchSize: OcaUint32(batchSize!)) : nil
+        batchingOptions: batchingOptions
       ))
     currentObject = await connection.rootBlock
     try await changeCurrentPath(to: connection.rootBlock)
