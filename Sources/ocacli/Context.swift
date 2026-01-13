@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024-2025 PADL Software Pty Ltd
+// Copyright (c) 2024-2026 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -285,7 +285,7 @@ final class Context: @unchecked Sendable {
         flags: self.contextFlags.connectionFlags,
         connectionTimeout: connectionTimeout ?? .seconds(2),
         responseTimeout: responseTimeout ?? .seconds(2),
-        batchingOptions: batchSize != nil ? .init(batchSize: OcaUint16(batchSize!)) : nil
+        batchingOptions: batchSize != nil ? .init(batchSize: OcaUint32(batchSize!)) : nil
       ))
     currentObject = await connection.rootBlock
     try await changeCurrentPath(to: connection.rootBlock)
