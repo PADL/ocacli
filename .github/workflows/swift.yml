@@ -22,7 +22,7 @@ jobs:
 
   linux:
     runs-on: ubuntu-24.04
-    container: swift:6.0
+    container: swift:6.2
     steps:
       - name: Packages
         run: |
