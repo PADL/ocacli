@@ -35,7 +35,7 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
     let object = object ?? context.currentObject
     guard context.subscriptions[object.objectNumber] == nil
     else { throw Ocp1Error.alreadySubscribedToEvent }
-    let eventID = eventID != nil ? OcaEventID(eventID) : OcaPropertyChangedEventID
+    let eventID = eventID != nil ? try OcaEventID(unsafeString: eventID) : OcaPropertyChangedEventID
     let event = OcaEvent(emitterONo: object.objectNumber, eventID: eventID)
     let cancellable = try await context.connection.addSubscription(
       label: "com.padl.ocacli",
