@@ -24,8 +24,6 @@ import FoundationNetworking
 import OcaFirmwareImageContainer
 import SwiftOCA
 
-private let _defaultChunkSize = 1024
-
 actor FirmwareManagerHelper {
   enum VerifyImageMethod {
     case none
@@ -194,7 +192,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
       component: component,
       url: url,
       method: verifyMethod,
-      chunkSize: _defaultChunkSize
+      chunkSize: context.chunkSize
     )
     let firmwareManager = context.currentObject as! OcaFirmwareManager
 
@@ -327,7 +325,8 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
       try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
 
       var sequenceNumber: OcaUint32 = 1
-      for chunk in Array(image).chunks(ofCount: _defaultChunkSize) {
+      let chunkSize = await context.chunkSize
+      for chunk in Array(image).chunks(ofCount: chunkSize) {
         try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
         sequenceNumber += 1
       }
@@ -340,4 +339,12 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+}
+
+extension Context {
+  var chunkSize: Int {
+    get async {
+      await isDatagram ? 1024 : 65535
+    }
+  }
 }

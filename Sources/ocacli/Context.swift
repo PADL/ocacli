@@ -291,6 +291,12 @@ final class Context: @unchecked Sendable {
     try await changeCurrentPath(to: connection.rootBlock)
   }
 
+  var isDatagram: Bool {
+    get async {
+      await connection.isDatagram
+    }
+  }
+
   func finish() async {
     try? await connection.disconnect()
   }
