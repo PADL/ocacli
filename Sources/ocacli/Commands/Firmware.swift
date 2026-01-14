@@ -162,6 +162,19 @@ struct StartUpdateProcess: REPLCommand, REPLClassSpecificCommand {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
+private func _parseAsyncCommandLineOption(_ async: String?) throws -> Bool {
+  switch async {
+  case "async":
+    true
+  case "sync":
+    fallthrough
+  case nil:
+    false
+  default:
+    throw Ocp1Error.status(.parameterOutOfRange)
+  }
+}
+
 struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOptionalArguments {
   static let name = ["begin-active-component-update", "update-component"]
   static let summary = "Update a firmware component"
@@ -181,6 +194,9 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
   @REPLCommandArgument
   var verifyMethod: String?
 
+  @REPLCommandArgument
+  var async: String?
+
   init() {}
 
   func execute(with context: Context) async throws {
@@ -188,6 +204,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
       throw Ocp1Error.status(.parameterOutOfRange)
     }
 
+    let async = try _parseAsyncCommandLineOption(async)
     let helper = try await FirmwareManagerHelper(
       component: component,
       url: url,
@@ -200,7 +217,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
 
     var sequenceNumber: OcaUint32 = 1
     try await helper.process { chunk in
-      try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
+      try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk), sync: !async)
       sequenceNumber += 1
     }
 
@@ -301,9 +318,13 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
   @REPLCommandArgument
   var component: UInt?
 
+  @REPLCommandArgument
+  var async: String?
+
   init() {}
 
   func execute(with context: Context) async throws {
+    let async = try _parseAsyncCommandLineOption(async)
     let firmwareManager = context.currentObject as! OcaFirmwareManager
     let reader = try await OcaFirmwareImageContainerURLReader.decode(url: url)
 
@@ -327,7 +348,7 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
       var sequenceNumber: OcaUint32 = 1
       let chunkSize = await context.chunkSize
       for chunk in Array(image).chunks(ofCount: chunkSize) {
-        try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk))
+        try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk), sync: !async)
         sequenceNumber += 1
       }
 
