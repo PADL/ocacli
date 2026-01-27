@@ -205,11 +205,12 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
     }
 
     let async = try _parseAsyncCommandLineOption(async)
+    let chunkSize = await context.chunkSize
     let helper = try await FirmwareManagerHelper(
       component: component,
       url: url,
       method: verifyMethod,
-      chunkSize: context.chunkSize
+      chunkSize: chunkSize
     )
     let firmwareManager = context.currentObject as! OcaFirmwareManager
 
@@ -217,7 +218,12 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
 
     var sequenceNumber: OcaUint32 = 1
     try await helper.process { chunk in
-      try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk), sync: !async)
+      let isFinalChunk = chunk.count < chunkSize
+      try await firmwareManager.addImageData(
+        id: sequenceNumber,
+        OcaBlob(chunk),
+        sync: !async || isFinalChunk
+      )
       sequenceNumber += 1
     }
 
@@ -348,7 +354,12 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
       var sequenceNumber: OcaUint32 = 1
       let chunkSize = await context.chunkSize
       for chunk in Array(image).chunks(ofCount: chunkSize) {
-        try await firmwareManager.addImageData(id: sequenceNumber, OcaBlob(chunk), sync: !async)
+        let isFinalChunk = chunk.count < chunkSize
+        try await firmwareManager.addImageData(
+          id: sequenceNumber,
+          OcaBlob(chunk),
+          sync: !async || isFinalChunk
+        )
         sequenceNumber += 1
       }
 
