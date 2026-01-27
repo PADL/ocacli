@@ -162,14 +162,14 @@ struct StartUpdateProcess: REPLCommand, REPLClassSpecificCommand {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
 }
 
-private func _parseAsyncCommandLineOption(_ async: String?) throws -> Bool {
+private func _parseAsyncCommandLineOption(_ async: String?) throws -> Bool? {
   switch async {
   case "async":
     true
   case "sync":
-    fallthrough
-  case nil:
     false
+  case nil:
+    nil
   default:
     throw Ocp1Error.status(.parameterOutOfRange)
   }
@@ -204,7 +204,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
       throw Ocp1Error.status(.parameterOutOfRange)
     }
 
-    let async = try _parseAsyncCommandLineOption(async)
+    let async = try _parseAsyncCommandLineOption(async) ?? false
     let chunkSize = await context.chunkSize
     let helper = try await FirmwareManagerHelper(
       component: component,
@@ -349,6 +349,7 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
       if let component, let component = OcaComponent(exactly: component),
          componentDescriptor.component != component { return }
 
+      let async = async ?? componentDescriptor.flags.contains(.supportsUnsequenced)
       try await firmwareManager.beginActiveImageUpdate(component: componentDescriptor.component)
 
       var sequenceNumber: OcaUint32 = 1
