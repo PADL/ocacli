@@ -33,10 +33,10 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
 
   func execute(with context: Context) async throws {
     let object = object ?? context.currentObject
-    guard context.subscriptions[object.objectNumber] == nil
-    else { throw Ocp1Error.alreadySubscribedToEvent }
     let eventID = eventID != nil ? try OcaEventID(unsafeString: eventID) : OcaPropertyChangedEventID
     let event = OcaEvent(emitterONo: object.objectNumber, eventID: eventID)
+    guard context.subscriptions[object.objectNumber] == nil
+    else { throw Ocp1Error.alreadySubscribedToEvent(event) }
     let cancellable = try await context.connection.addSubscription(
       label: "com.padl.ocacli",
       event: event,
