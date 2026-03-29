@@ -118,12 +118,15 @@ struct ContextFlags: OptionSet, ConvertibleFromString {
 enum DeviceEndpointInfo {
   case tcp(String, UInt16)
   case udp(String, UInt16)
+  case webSocket(String, UInt16)
   case path(String)
   case datagramPath(String)
 
   var isDatagram: Bool {
     switch self {
     case .tcp:
+      fallthrough
+    case .webSocket:
       fallthrough
     case .path:
       false
@@ -140,6 +143,8 @@ enum DeviceEndpointInfo {
       hostname
     case let .udp(hostname, _):
       hostname
+    case let .webSocket(hostname, _):
+      hostname
     case .path:
       nil
     case .datagramPath:
@@ -152,6 +157,8 @@ enum DeviceEndpointInfo {
     case let .tcp(_, port):
       port
     case let .udp(_, port):
+      port
+    case let .webSocket(_, port):
       port
     case .path:
       0
@@ -177,12 +184,34 @@ enum DeviceEndpointInfo {
       fallthrough
     case .udp:
       return try await getRemoteConnection(options: options)
+    case .webSocket:
+      return try await getWebSocketConnection(options: options)
     case .path:
       return try await getLocalConnection(options: options)
     case .datagramPath:
       return try await getLocalConnection(options: options)
     }
   }
+
+  #if os(macOS) || os(iOS)
+  private func getWebSocketConnection(options: Ocp1ConnectionOptions) async throws
+    -> Ocp1Connection
+  {
+    guard let hostname else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
+    let url = URL(string: "ws://\(hostname):\(port)/")!
+    let connection = await Ocp1FlyingFoxConnection(url: url, options: options)
+    try await connection.connect()
+    return connection
+  }
+  #else
+  private func getWebSocketConnection(options: Ocp1ConnectionOptions) async throws
+    -> Ocp1Connection
+  {
+    throw Ocp1Error.serviceResolutionFailed
+  }
+  #endif
 
   private func getRemoteConnection(options: Ocp1ConnectionOptions) async throws
     -> Ocp1Connection

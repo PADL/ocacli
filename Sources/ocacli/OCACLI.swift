@@ -32,6 +32,8 @@ final class OCACLI: Command {
   private var port: Int = 65000
   @CommandOption(short: "U", long: "udp", description: "Use UDP instead of TCP")
   private var datagram: Bool
+  @CommandOption(short: "w", long: "websocket", description: "Use WebSocket instead of TCP")
+  private var webSocket: Bool
   @CommandArgument(short: "P", long: "path", description: "Domain socket path")
   private var path: String?
   @CommandOption(
@@ -235,7 +237,9 @@ final class OCACLI: Command {
         deviceEndpointInfo = DeviceEndpointInfo.path(path)
       }
     } else {
-      if datagram {
+      if webSocket {
+        deviceEndpointInfo = DeviceEndpointInfo.webSocket(hostname!, port)
+      } else if datagram {
         deviceEndpointInfo = DeviceEndpointInfo.udp(hostname!, port)
       } else {
         deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname!, port)
