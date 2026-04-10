@@ -86,6 +86,11 @@ final class OCACLI: Command {
 
   private let lineReader = LineReader()
   private let commands = REPLCommandRegistry.shared
+  private static var savedTermios: termios = {
+    var term = termios()
+    tcgetattr(STDIN_FILENO, &term)
+    return term
+  }()
 
   private typealias CommandTokens = [String]
   private var context: Context!
@@ -356,11 +361,17 @@ final class OCACLI: Command {
         if connectionState == .notConnected || connectionState == .connectionTimedOut ||
           connectionState == .connectionFailed
         {
+          Self.resetTerminal()
           context.print(Ocp1Error.notConnected)
           exit(2)
         }
       }
     }
+  }
+
+  private static func resetTerminal() {
+    var term = savedTermios
+    tcsetattr(STDIN_FILENO, TCSADRAIN, &term)
   }
 
   private func initCommandSourceStream() -> AsyncStream<CommandTokens>.Continuation {
@@ -411,6 +422,7 @@ final class OCACLI: Command {
 
   func run() throws {
     LoggingSystem.bootstrap { StreamLogHandler.standardError(label: $0) }
+    _ = Self.savedTermios
 
     signal(SIGPIPE, SIG_IGN)
 
