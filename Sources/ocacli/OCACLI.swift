@@ -358,7 +358,7 @@ final class OCACLI: Command {
     let context = context!
     Task {
       for try await connectionState in await context.connection.connectionState {
-        if connectionState == .notConnected || connectionState == .connectionTimedOut ||
+        if connectionState == .connectionTimedOut ||
           connectionState == .connectionFailed
         {
           Self.resetTerminal()
