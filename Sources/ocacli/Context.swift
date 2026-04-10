@@ -121,6 +121,9 @@ enum DeviceEndpointInfo {
   case webSocket(String, UInt16)
   case path(String)
   case datagramPath(String)
+  #if canImport(Darwin)
+  case machPort(String)
+  #endif
 
   var isDatagram: Bool {
     switch self {
@@ -134,6 +137,10 @@ enum DeviceEndpointInfo {
       fallthrough
     case .datagramPath:
       true
+    #if canImport(Darwin)
+    case .machPort:
+      false
+    #endif
     }
   }
 
@@ -149,6 +156,10 @@ enum DeviceEndpointInfo {
       nil
     case .datagramPath:
       nil
+    #if canImport(Darwin)
+    case .machPort:
+      nil
+    #endif
     }
   }
 
@@ -164,6 +175,10 @@ enum DeviceEndpointInfo {
       0
     case .datagramPath:
       0
+    #if canImport(Darwin)
+    case .machPort:
+      0
+    #endif
     }
   }
 
@@ -173,6 +188,10 @@ enum DeviceEndpointInfo {
       path
     case let .datagramPath(path):
       path
+    #if canImport(Darwin)
+    case let .machPort(serviceName):
+      serviceName
+    #endif
     default:
       nil
     }
@@ -190,8 +209,24 @@ enum DeviceEndpointInfo {
       return try await getLocalConnection(options: options)
     case .datagramPath:
       return try await getLocalConnection(options: options)
+    #if canImport(Darwin)
+    case let .machPort(serviceName):
+      return try await getMachPortConnection(serviceName: serviceName, options: options)
+    #endif
     }
   }
+
+  #if canImport(Darwin)
+  @OcaConnection
+  private func getMachPortConnection(
+    serviceName: String,
+    options: Ocp1ConnectionOptions
+  ) async throws -> Ocp1Connection {
+    let connection = Ocp1MachPortConnection(serviceName: serviceName, options: options)
+    try await connection.connect()
+    return connection
+  }
+  #endif
 
   #if os(macOS) || os(iOS)
   private func getWebSocketConnection(options: Ocp1ConnectionOptions) async throws

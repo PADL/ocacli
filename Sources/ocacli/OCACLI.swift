@@ -36,6 +36,10 @@ final class OCACLI: Command {
   private var webSocket: Bool
   @CommandArgument(short: "P", long: "path", description: "Domain socket path")
   private var path: String?
+  #if canImport(Darwin)
+  @CommandArgument(short: "M", long: "mach", description: "Mach port bootstrap service name")
+  private var machServiceName: String?
+  #endif
   @CommandOption(
     short: "a",
     long: "automatic-reconnect",
@@ -195,9 +199,15 @@ final class OCACLI: Command {
   private func initContext() async throws -> Context {
     var logger = Logger(label: "com.padl.ocacli")
 
+    #if canImport(Darwin)
+    guard hostname != nil || path != nil || machServiceName != nil, !help else {
+      usage()
+    }
+    #else
     guard hostname != nil || path != nil, !help else {
       usage()
     }
+    #endif
 
     if let logLevel {
       guard let logLevel = Logger.Level(rawValue: logLevel) else {
@@ -230,21 +240,19 @@ final class OCACLI: Command {
       throw Ocp1Error.serviceResolutionFailed
     }
 
-    if let path {
-      if datagram {
-        deviceEndpointInfo = DeviceEndpointInfo.datagramPath(path)
-      } else {
-        deviceEndpointInfo = DeviceEndpointInfo.path(path)
-      }
-    } else {
-      if webSocket {
-        deviceEndpointInfo = DeviceEndpointInfo.webSocket(hostname!, port)
-      } else if datagram {
-        deviceEndpointInfo = DeviceEndpointInfo.udp(hostname!, port)
-      } else {
-        deviceEndpointInfo = DeviceEndpointInfo.tcp(hostname!, port)
-      }
-    }
+    #if canImport(Darwin)
+    let _machServiceName = machServiceName
+    #else
+    let _machServiceName: String? = nil
+    #endif
+    deviceEndpointInfo = Self._resolveEndpointInfo(
+      path: path,
+      hostname: hostname,
+      port: port,
+      datagram: datagram,
+      webSocket: webSocket,
+      machServiceName: _machServiceName
+    )
 
     return try await Context(
       deviceEndpointInfo: deviceEndpointInfo,
@@ -255,6 +263,36 @@ final class OCACLI: Command {
       batchSize: batchSize != nil ? UInt32(batchSize!) : nil,
       batchThreshold: batchThreshold != nil ? .milliseconds(batchThreshold!) : nil
     )
+  }
+
+  private static func _resolveEndpointInfo(
+    path: String?,
+    hostname: String?,
+    port: UInt16,
+    datagram: Bool,
+    webSocket: Bool,
+    machServiceName: String?
+  ) -> DeviceEndpointInfo {
+    #if canImport(Darwin)
+    if let machServiceName {
+      return .machPort(machServiceName)
+    }
+    #endif
+    if let path {
+      if datagram {
+        return .datagramPath(path)
+      } else {
+        return .path(path)
+      }
+    } else {
+      if webSocket {
+        return .webSocket(hostname!, port)
+      } else if datagram {
+        return .udp(hostname!, port)
+      } else {
+        return .tcp(hostname!, port)
+      }
+    }
   }
 
   private func readCommand() throws -> [String] {
