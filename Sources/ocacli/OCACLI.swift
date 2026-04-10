@@ -348,6 +348,21 @@ final class OCACLI: Command {
     !commandsToExecute.isEmpty
   }
 
+  private func monitorConnectionState() {
+    guard !context.contextFlags.contains(.automaticReconnect) else { return }
+    let context = context!
+    Task {
+      for try await connectionState in await context.connection.connectionState {
+        if connectionState == .notConnected || connectionState == .connectionTimedOut ||
+          connectionState == .connectionFailed
+        {
+          context.print(Ocp1Error.notConnected)
+          exit(2)
+        }
+      }
+    }
+  }
+
   private func initCommandSourceStream() -> AsyncStream<CommandTokens>.Continuation {
     var continuation: AsyncStream<CommandTokens>.Continuation!
     commandSourceStream = AsyncStream<CommandTokens> {
@@ -358,6 +373,7 @@ final class OCACLI: Command {
           print(error)
           exit(2)
         }
+        self.monitorConnectionState()
         commandDidComplete.signal()
         for await tokens in commandSourceStream {
           do {
