@@ -22,7 +22,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.0.0"),
     .package(url: "https://github.com/apple/swift-crypto", from: "3.10.0"),
-    .package(url: "https://github.com/objecthub/swift-commandlinekit", branch: "master"),
+    .package(url: "https://github.com/objecthub/swift-commandlinekit", from: "1.0.0"),
   ],
   targets: [
     .executableTarget(
