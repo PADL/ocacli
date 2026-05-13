@@ -29,6 +29,7 @@ let package = Package(
       name: "ocacli",
       dependencies: [
         "SwiftOCA",
+        .product(name: "SwiftOCASecure", package: "SwiftOCA"),
         "OcaFirmwareImageContainer",
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "Algorithms", package: "swift-algorithms"),
