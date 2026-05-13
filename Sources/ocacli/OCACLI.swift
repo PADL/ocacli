@@ -19,6 +19,7 @@ import CommandLineKit
 import Foundation
 import Logging
 import SwiftOCA
+import SwiftOCASecure
 
 @main
 final class OCACLI: Command {
@@ -34,6 +35,59 @@ final class OCACLI: Command {
   private var datagram: Bool
   @CommandOption(short: "w", long: "websocket", description: "Use WebSocket instead of TCP")
   private var webSocket: Bool
+  @CommandOption(
+    short: "S",
+    long: "tls",
+    description: "Use TLS over TCP; combine with -U for DTLS over UDP"
+  )
+  private var tls: Bool
+  @CommandArgument(
+    long: "psk-identity",
+    description: "TLS PSK identity (default: OCA-PSK)"
+  )
+  private var pskIdentity: String?
+  @CommandArgument(long: "psk-key", description: "TLS PSK key, hex-encoded")
+  private var pskKey: String?
+  @CommandArgument(long: "cert", description: "TLS client certificate PEM file")
+  private var certFile: String?
+  @CommandArgument(long: "key", description: "TLS client private key PEM file")
+  private var keyFile: String?
+  @CommandArgument(
+    long: "pkcs12",
+    description: "TLS client PKCS#12 bundle path"
+  )
+  private var pkcs12File: String?
+  @CommandArgument(
+    long: "pkcs12-password",
+    description: "PKCS#12 bundle password (env: OCACLI_PKCS12_PASSWORD; prompted if omitted)"
+  )
+  private var pkcs12Password: String?
+  @CommandOption(
+    short: "k",
+    long: "insecure",
+    description: "Disable TLS server certificate verification (cert credentials only; for testing)"
+  )
+  private var insecure: Bool
+  @CommandArgument(
+    long: "cacert",
+    description: "PEM CA bundle for TLS server-cert verification"
+  )
+  private var caCertFile: String?
+  @CommandArgument(
+    long: "crl-file",
+    description: "PEM CRL bundle for TLS revocation checking"
+  )
+  private var crlFile: String?
+  @CommandOption(
+    long: "check-revocation",
+    description: "Enable TLS revocation checking against leaf certificate"
+  )
+  private var checkRevocation: Bool
+  @CommandOption(
+    long: "check-revocation-all",
+    description: "Enable TLS revocation checking across the full chain"
+  )
+  private var checkRevocationAll: Bool
   @CommandArgument(short: "P", long: "path", description: "Domain socket path")
   private var path: String?
   #if canImport(Darwin)
@@ -250,12 +304,40 @@ final class OCACLI: Command {
     #else
     let _machServiceName: String? = nil
     #endif
+    let tlsCredential: Ocp1TLSCredential? = try Self._resolveTLSCredential(
+      tls: tls,
+      pskIdentity: pskIdentity,
+      pskKey: pskKey,
+      certFile: certFile,
+      keyFile: keyFile,
+      pkcs12File: pkcs12File,
+      pkcs12Password: pkcs12Password
+    )
+    if tls, path != nil || _machServiceName != nil {
+      print(
+        "error: --tls cannot be combined with --path or --mach (TLS is only supported over TCP/UDP)"
+      )
+      throw Ocp1Error.status(.parameterError)
+    }
+    if !tls, caCertFile != nil || insecure {
+      print("error: --cacert / --insecure require --tls")
+      throw Ocp1Error.status(.parameterError)
+    }
+    let revocation = try Self._resolveRevocationOptions(
+      tls: tls,
+      crlFile: crlFile,
+      checkRevocation: checkRevocation,
+      checkRevocationAll: checkRevocationAll
+    )
     deviceEndpointInfo = Self._resolveEndpointInfo(
       path: path,
       hostname: hostname,
       port: port,
       datagram: datagram,
       webSocket: webSocket,
+      tlsCredential: tlsCredential,
+      tlsTrustRoots: caCertFile.map { .caFile($0) },
+      tlsRevocation: revocation,
       machServiceName: _machServiceName
     )
 
@@ -266,7 +348,8 @@ final class OCACLI: Command {
       connectionTimeout: connectionTimeout != nil ? .seconds(connectionTimeout!) : nil,
       responseTimeout: responseTimeout != nil ? .seconds(responseTimeout!) : nil,
       batchSize: batchSize != nil ? UInt32(batchSize!) : nil,
-      batchThreshold: batchThreshold != nil ? .milliseconds(batchThreshold!) : nil
+      batchThreshold: batchThreshold != nil ? .milliseconds(batchThreshold!) : nil,
+      insecure: insecure
     )
   }
 
@@ -276,8 +359,18 @@ final class OCACLI: Command {
     port: UInt16,
     datagram: Bool,
     webSocket: Bool,
+    tlsCredential: Ocp1TLSCredential?,
+    tlsTrustRoots: Ocp1TLSTrustRoots?,
+    tlsRevocation: Ocp1TLSRevocationOptions,
     machServiceName: String?
   ) -> DeviceEndpointInfo {
+    if let tlsCredential {
+      if datagram {
+        return .dtls(hostname!, port, tlsCredential, tlsTrustRoots, tlsRevocation)
+      } else {
+        return .tls(hostname!, port, tlsCredential, tlsTrustRoots, tlsRevocation)
+      }
+    }
     #if canImport(Darwin)
     if let machServiceName {
       return .machPort(machServiceName)
@@ -298,6 +391,126 @@ final class OCACLI: Command {
         return .tcp(hostname!, port)
       }
     }
+  }
+
+  /// Build an `Ocp1TLSCredential` from whichever credential family the user
+  /// selected via flags. Exactly one of PSK / cert-file / PKCS#12 must be
+  /// supplied alongside `--tls`. The library accepts further credential
+  /// shapes (raw in-memory PEM, platform-native identities) that aren't
+  /// meaningful from a command line so they aren't exposed here.
+  private static func _resolveTLSCredential(
+    tls: Bool,
+    pskIdentity: String?,
+    pskKey: String?,
+    certFile: String?,
+    keyFile: String?,
+    pkcs12File: String?,
+    pkcs12Password: String?
+  ) throws -> Ocp1TLSCredential? {
+    let hasPSK = pskKey != nil
+    let hasCertFile = certFile != nil || keyFile != nil
+    let hasPKCS12 = pkcs12File != nil
+
+    if !tls {
+      if hasPSK || hasCertFile || hasPKCS12 || pskIdentity != nil || pkcs12Password != nil {
+        print(
+          "error: --psk-identity / --psk-key / --cert / --key / --pkcs12[-password] require --tls"
+        )
+        throw Ocp1Error.status(.parameterError)
+      }
+      return nil
+    }
+
+    let supplied = [hasPSK, hasCertFile, hasPKCS12].filter { $0 }.count
+    guard supplied == 1 else {
+      if supplied == 0 {
+        print(
+          "error: --tls requires a credential: --psk-key, --cert/--key, or --pkcs12"
+        )
+      } else {
+        print(
+          "error: --psk-key, --cert/--key and --pkcs12 are mutually exclusive"
+        )
+      }
+      throw Ocp1Error.status(.parameterError)
+    }
+
+    if hasPSK {
+      guard let pskKey, let keyBytes = Data(hex: pskKey) else {
+        print("error: --psk-key must be a hex string")
+        throw Ocp1Error.status(.parameterError)
+      }
+      // Library also enforces this in `Ocp1TLSCredential.validate()`, but
+      // catching it up front gives the user a clearer message than the
+      // generic parameterError thrown at connect time.
+      guard keyBytes.count >= OcaMinimumPreSharedKeyLength else {
+        print(
+          "error: --psk-key must be at least \(OcaMinimumPreSharedKeyLength) bytes (got \(keyBytes.count))"
+        )
+        throw Ocp1Error.status(.parameterError)
+      }
+      let identity = pskIdentity ?? OcaPreSharedKeyIdentityHint
+      return .preSharedKey(identity: identity, key: keyBytes)
+    }
+
+    if hasCertFile {
+      guard let certFile, let keyFile else {
+        print("error: --cert and --key must be supplied together")
+        throw Ocp1Error.status(.parameterError)
+      }
+      return .certificateFile(certPath: certFile, keyPath: keyFile)
+    }
+
+    // PKCS#12: load the bundle into memory; the library handles parsing.
+    guard let pkcs12File else { preconditionFailure() }
+    let data: Data
+    do {
+      data = try Data(contentsOf: URL(fileURLWithPath: pkcs12File))
+    } catch {
+      print("error: could not read PKCS#12 file at \(pkcs12File): \(error)")
+      throw Ocp1Error.status(.parameterError)
+    }
+    let password = Self._resolvePKCS12Password(explicit: pkcs12Password)
+    return .pkcs12(data: data, password: password)
+  }
+
+  /// Resolve a PKCS#12 password without forcing the user to expose it on
+  /// the command line (visible in `ps` listings and shell history). The
+  /// CLI argument wins if supplied; otherwise fall back to an environment
+  /// variable, then to a `getpass`-style interactive prompt. A nil result
+  /// means "no password" — only valid for unencrypted bundles.
+  private static func _resolvePKCS12Password(explicit: String?) -> String? {
+    if let explicit { return explicit }
+    if let env = ProcessInfo.processInfo.environment["OCACLI_PKCS12_PASSWORD"] {
+      return env
+    }
+    // Skip the prompt when stdin isn't a TTY (e.g. piped input) — getpass
+    // would either block forever or echo on stderr-only consoles. Returning
+    // nil lets the library try a no-password bundle and fail cleanly.
+    guard isatty(STDIN_FILENO) != 0 else { return nil }
+    guard let cString = getpass("PKCS#12 password: ") else { return nil }
+    let password = String(cString: cString)
+    return password.isEmpty ? nil : password
+  }
+
+  /// Map the `--check-revocation[-all]` and `--crl-file` flags onto the
+  /// library's `Ocp1TLSRevocationOptions`. Revocation is off-by-default;
+  /// supplying `--crl-file` alone is enough to opt in (without a checking
+  /// flag the CRL would just sit unused).
+  private static func _resolveRevocationOptions(
+    tls: Bool,
+    crlFile: String?,
+    checkRevocation: Bool,
+    checkRevocationAll: Bool
+  ) throws -> Ocp1TLSRevocationOptions {
+    if !tls, crlFile != nil || checkRevocation || checkRevocationAll {
+      print("error: --crl-file / --check-revocation[-all] require --tls")
+      throw Ocp1Error.status(.parameterError)
+    }
+    var flags: Ocp1TLSRevocationOptions.Flags = []
+    if checkRevocation || crlFile != nil { flags.insert(.enabled) }
+    if checkRevocationAll { flags.insert([.enabled, .checkChain]) }
+    return Ocp1TLSRevocationOptions(flags: flags, crls: crlFile.map { .crlFile($0) })
   }
 
   private func readCommand() throws -> [String] {
