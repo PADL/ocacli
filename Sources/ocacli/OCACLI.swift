@@ -180,7 +180,7 @@ final class OCACLI: Command {
       flags.usageDescription(
         usageName: TextStyle.bold.properties.apply(to: "usage:"),
         synopsis: "[<option> ...] [---] [<program> <arg> ...]",
-        usageStyle: TextProperties.none,
+        usageStyle: TextProperties.empty,
         optionsName: TextStyle.bold.properties.apply(to: "options:"),
         flagStyle: TextStyle.italic.properties
       ),
