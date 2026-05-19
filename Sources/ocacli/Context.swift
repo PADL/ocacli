@@ -18,6 +18,7 @@ import CommandLineKit
 import Foundation
 import Logging
 import SwiftOCA
+import SwiftOCASecure
 import struct SystemPackage.Errno
 
 enum ContextFlagsNames: Int, CaseIterable {
@@ -124,6 +125,8 @@ enum DeviceEndpointInfo {
   #if canImport(Darwin)
   case machPort(String)
   #endif
+  case tls(String, UInt16, Ocp1TLSCredential, Ocp1TLSTrustRoots?, Ocp1TLSRevocationOptions)
+  case dtls(String, UInt16, Ocp1TLSCredential, Ocp1TLSTrustRoots?, Ocp1TLSRevocationOptions)
 
   var isDatagram: Bool {
     switch self {
@@ -131,11 +134,15 @@ enum DeviceEndpointInfo {
       fallthrough
     case .webSocket:
       fallthrough
+    case .tls:
+      fallthrough
     case .path:
       false
     case .udp:
       fallthrough
     case .datagramPath:
+      fallthrough
+    case .dtls:
       true
     #if canImport(Darwin)
     case .machPort:
@@ -151,6 +158,10 @@ enum DeviceEndpointInfo {
     case let .udp(hostname, _):
       hostname
     case let .webSocket(hostname, _):
+      hostname
+    case let .tls(hostname, _, _, _, _):
+      hostname
+    case let .dtls(hostname, _, _, _, _):
       hostname
     case .path:
       nil
@@ -170,6 +181,10 @@ enum DeviceEndpointInfo {
     case let .udp(_, port):
       port
     case let .webSocket(_, port):
+      port
+    case let .tls(_, port, _, _, _):
+      port
+    case let .dtls(_, port, _, _, _):
       port
     case .path:
       0
@@ -213,6 +228,20 @@ enum DeviceEndpointInfo {
     case let .machPort(serviceName):
       return try await getMachPortConnection(serviceName: serviceName, options: options)
     #endif
+    case let .tls(_, _, credential, trustRoots, revocation):
+      return try await getTLSConnection(
+        credential: credential,
+        trustRoots: trustRoots,
+        revocation: revocation,
+        options: options
+      )
+    case let .dtls(_, _, credential, trustRoots, revocation):
+      return try await getDTLSConnection(
+        credential: credential,
+        trustRoots: trustRoots,
+        revocation: revocation,
+        options: options
+      )
     }
   }
 
@@ -301,6 +330,104 @@ enum DeviceEndpointInfo {
     }
   }
 
+  private func getTLSConnection(
+    credential: Ocp1TLSCredential,
+    trustRoots: Ocp1TLSTrustRoots?,
+    revocation: Ocp1TLSRevocationOptions,
+    options: Ocp1ConnectionOptions
+  ) async throws -> Ocp1Connection {
+    guard let hostname else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
+    let host = Host(name: hostname)
+    var savedError: Error?
+    for hostAddress in host.addresses {
+      do {
+        var deviceAddressData = Data()
+        if hostAddress.contains(":") {
+          var deviceAddress = try sockaddr_in6(hostAddress, port: port)
+          withUnsafeBytes(of: &deviceAddress) { bytes in
+            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
+          }
+        } else {
+          var deviceAddress = try sockaddr_in(hostAddress, port: port)
+          withUnsafeBytes(of: &deviceAddress) { bytes in
+            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
+          }
+        }
+        // Pass the original DNS hostname through so the TLS engine can use
+        // it for SNI and hostname-based certificate verification. Without
+        // this, verification would only see the resolved IP. The optional
+        // trustRoots re-roots trust evaluation at a private CA bundle.
+        let connection = try await Ocp1TLSStreamConnection(
+          deviceAddress: deviceAddressData,
+          credential: credential,
+          hostname: hostname,
+          trustRoots: trustRoots,
+          revocation: revocation,
+          options: options
+        )
+        try await connection.connect()
+        return connection
+      } catch {
+        savedError = error
+      }
+    }
+    if let savedError {
+      throw savedError
+    } else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
+  }
+
+  /// DTLS-over-UDP variant of `getTLSConnection`. Resolves the hostname to
+  /// each address candidate and tries them in order until one connects.
+  private func getDTLSConnection(
+    credential: Ocp1TLSCredential,
+    trustRoots: Ocp1TLSTrustRoots?,
+    revocation: Ocp1TLSRevocationOptions,
+    options: Ocp1ConnectionOptions
+  ) async throws -> Ocp1Connection {
+    guard let hostname else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
+    let host = Host(name: hostname)
+    var savedError: Error?
+    for hostAddress in host.addresses {
+      do {
+        var deviceAddressData = Data()
+        if hostAddress.contains(":") {
+          var deviceAddress = try sockaddr_in6(hostAddress, port: port)
+          withUnsafeBytes(of: &deviceAddress) { bytes in
+            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
+          }
+        } else {
+          var deviceAddress = try sockaddr_in(hostAddress, port: port)
+          withUnsafeBytes(of: &deviceAddress) { bytes in
+            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
+          }
+        }
+        let connection = try await Ocp1TLSDatagramConnection(
+          deviceAddress: deviceAddressData,
+          credential: credential,
+          hostname: hostname,
+          trustRoots: trustRoots,
+          revocation: revocation,
+          options: options
+        )
+        try await connection.connect()
+        return connection
+      } catch {
+        savedError = error
+      }
+    }
+    if let savedError {
+      throw savedError
+    } else {
+      throw Ocp1Error.serviceResolutionFailed
+    }
+  }
+
   private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
     guard let path else {
       throw Ocp1Error.serviceResolutionFailed
@@ -341,7 +468,8 @@ final class Context: @unchecked Sendable {
     connectionTimeout: Duration? = nil,
     responseTimeout: Duration? = nil,
     batchSize: UInt32? = nil,
-    batchThreshold: Duration? = nil
+    batchThreshold: Duration? = nil,
+    insecure: Bool = false
   ) async throws {
     self.contextFlags = contextFlags
     self.logger = logger
@@ -349,9 +477,11 @@ final class Context: @unchecked Sendable {
       batchSize: batchSize,
       batchThreshold: batchThreshold
     )
+    var connectionFlags = self.contextFlags.connectionFlags
+    if insecure { connectionFlags.insert(.disableCertificateVerification) }
     connection = try await deviceEndpointInfo
       .getConnection(options: Ocp1ConnectionOptions(
-        flags: self.contextFlags.connectionFlags,
+        flags: connectionFlags,
         connectionTimeout: connectionTimeout ?? .seconds(2),
         responseTimeout: responseTimeout ?? .seconds(2),
         batchingOptions: batchingOptions
