@@ -12,7 +12,6 @@
     - apply-param-set (deprecated)
     - store-current-param-set (deprecated)
 * OcaDeviceManager
-    - apply-patch
     - set-reset-key
     - clear-reset-cause
 * OcaFirmwareManager
