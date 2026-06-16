@@ -280,54 +280,19 @@ enum DeviceEndpointInfo {
   private func getRemoteConnection(options: Ocp1ConnectionOptions) async throws
     -> Ocp1Connection
   {
-    var connection: Ocp1Connection?
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
     }
-    let host = Host(name: hostname)
-    var savedError: Error?
-
-    for hostAddress in host.addresses {
-      do {
-        var deviceAddressData = Data()
-        if hostAddress.contains(":") {
-          var deviceAddress = try sockaddr_in6(hostAddress, port: port)
-          withUnsafeBytes(of: &deviceAddress) { bytes in
-            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-          }
-        } else {
-          var deviceAddress = try sockaddr_in(hostAddress, port: port)
-          withUnsafeBytes(of: &deviceAddress) { bytes in
-            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-          }
-        }
-        if isDatagram {
-          connection = try await Ocp1UDPConnection(
-            deviceAddress: deviceAddressData,
-            options: options
-          )
-        } else {
-          connection = try await Ocp1TCPConnection(
-            deviceAddress: deviceAddressData,
-            options: options
-          )
-        }
-        if let connection {
-          try await connection.connect()
-          break
-        }
-      } catch {
-        savedError = error
-      }
-    }
-
-    if let connection {
-      return connection
-    } else if let savedError {
-      throw savedError
+    // SwiftOCA resolves the hostname (to its candidate addresses, in preference
+    // order) on each connect attempt, so pass it through directly rather than
+    // resolving here.
+    let connection: Ocp1Connection = if isDatagram {
+      try await Ocp1UDPConnection(host: hostname, port: port, options: options)
     } else {
-      throw Ocp1Error.serviceResolutionFailed
+      try await Ocp1TCPConnection(host: hostname, port: port, options: options)
     }
+    try await connection.connect()
+    return connection
   }
 
   private func getTLSConnection(
@@ -339,49 +304,22 @@ enum DeviceEndpointInfo {
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
     }
-    let host = Host(name: hostname)
-    var savedError: Error?
-    for hostAddress in host.addresses {
-      do {
-        var deviceAddressData = Data()
-        if hostAddress.contains(":") {
-          var deviceAddress = try sockaddr_in6(hostAddress, port: port)
-          withUnsafeBytes(of: &deviceAddress) { bytes in
-            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-          }
-        } else {
-          var deviceAddress = try sockaddr_in(hostAddress, port: port)
-          withUnsafeBytes(of: &deviceAddress) { bytes in
-            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-          }
-        }
-        // Pass the original DNS hostname through so the TLS engine can use
-        // it for SNI and hostname-based certificate verification. Without
-        // this, verification would only see the resolved IP. The optional
-        // trustRoots re-roots trust evaluation at a private CA bundle.
-        let connection = try await Ocp1TLSStreamConnection(
-          deviceAddress: deviceAddressData,
-          credential: credential,
-          hostname: hostname,
-          trustRoots: trustRoots,
-          revocation: revocation,
-          options: options
-        )
-        try await connection.connect()
-        return connection
-      } catch {
-        savedError = error
-      }
-    }
-    if let savedError {
-      throw savedError
-    } else {
-      throw Ocp1Error.serviceResolutionFailed
-    }
+    // SwiftOCA resolves the hostname on each connect attempt and uses it as the
+    // TLS server name (SNI / certificate verification); the optional trustRoots
+    // re-roots trust evaluation at a private CA bundle.
+    let connection = try await Ocp1TLSStreamConnection(
+      host: hostname,
+      port: port,
+      credential: credential,
+      trustRoots: trustRoots,
+      revocation: revocation,
+      options: options
+    )
+    try await connection.connect()
+    return connection
   }
 
-  /// DTLS-over-UDP variant of `getTLSConnection`. Resolves the hostname to
-  /// each address candidate and tries them in order until one connects.
+  /// DTLS-over-UDP variant of `getTLSConnection`.
   private func getDTLSConnection(
     credential: Ocp1TLSCredential,
     trustRoots: Ocp1TLSTrustRoots?,
@@ -391,41 +329,16 @@ enum DeviceEndpointInfo {
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
     }
-    let host = Host(name: hostname)
-    var savedError: Error?
-    for hostAddress in host.addresses {
-      do {
-        var deviceAddressData = Data()
-        if hostAddress.contains(":") {
-          var deviceAddress = try sockaddr_in6(hostAddress, port: port)
-          withUnsafeBytes(of: &deviceAddress) { bytes in
-            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-          }
-        } else {
-          var deviceAddress = try sockaddr_in(hostAddress, port: port)
-          withUnsafeBytes(of: &deviceAddress) { bytes in
-            deviceAddressData = Data(bytes: bytes.baseAddress!, count: bytes.count)
-          }
-        }
-        let connection = try await Ocp1TLSDatagramConnection(
-          deviceAddress: deviceAddressData,
-          credential: credential,
-          hostname: hostname,
-          trustRoots: trustRoots,
-          revocation: revocation,
-          options: options
-        )
-        try await connection.connect()
-        return connection
-      } catch {
-        savedError = error
-      }
-    }
-    if let savedError {
-      throw savedError
-    } else {
-      throw Ocp1Error.serviceResolutionFailed
-    }
+    let connection = try await Ocp1TLSDatagramConnection(
+      host: hostname,
+      port: port,
+      credential: credential,
+      trustRoots: trustRoots,
+      revocation: revocation,
+      options: options
+    )
+    try await connection.connect()
+    return connection
   }
 
   private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
