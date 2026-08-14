@@ -111,6 +111,10 @@ struct TLSOptions: ParsableArguments {
       throw ValidationError("--cert and --key must be supplied together.")
     }
 
+    if let pkcs12, !FileManager.default.isReadableFile(atPath: pkcs12) {
+      throw ValidationError("The PKCS#12 file at \(pkcs12) cannot be read.")
+    }
+
     if let pskKey {
       guard let keyBytes = Data(hex: pskKey) else {
         throw ValidationError("--psk-key must be a hex string.")

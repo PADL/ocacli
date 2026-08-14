@@ -41,6 +41,9 @@ final class Session {
   init(context: Context) {
     self.context = context
     _ = Self.savedTermios
+    // a command may be interrupted from the keyboard whenever there is one; the reader does
+    // nothing when standard input is not a terminal
+    context.lineReader = lineReader
     monitorConnectionState()
   }
 
@@ -48,17 +51,19 @@ final class Session {
   /// the same task as the reader, so a command can take as long as it likes without a thread
   /// being parked on its behalf.
   func runInteractively() async {
-    // commands may be interrupted from the keyboard only when there is a keyboard to read
-    context.lineReader = lineReader
     await prepareLineReader()
 
     while true {
       let line: String
       do {
         line = try await lineReader.readLine(prompt: "\(context.currentPathString)> ")
-      } catch {
-        // Ctrl-C or end of input
+      } catch LineReaderError.interrupted, LineReaderError.endOfFile {
         return
+      } catch is CancellationError {
+        return
+      } catch {
+        context.print(error)
+        continue
       }
 
       let tokens = commands.tokenizeCommand(line)
@@ -94,8 +99,32 @@ final class Session {
   private func prepareLineReader() async {
     await lineReader.setStyle(Self.style)
     await lineReader.setMaximumLineLength(200)
-    await lineReader.setCompletionHandler { [commands, context] line, cursor in
-      await commands.getCompletions(from: line, cursor: cursor, context: context)
+    await lineReader.setCompletionHandler { [commands, weak context] line, cursor in
+      guard let context else { return [] }
+      return await Self.completions(within: Self.completionTimeout) {
+        await commands.getCompletions(from: line, cursor: cursor, context: context)
+      }
+    }
+  }
+
+  /// Resolving a path can take as long as the device does to answer, and the line editor reads
+  /// no keys whilst it waits — with the terminal in raw mode, not even Ctrl-C. Rather than let a
+  /// device that has stopped answering freeze the prompt, give up and offer nothing.
+  private static let completionTimeout = Duration.seconds(2)
+
+  private static func completions(
+    within timeout: Duration,
+    _ resolve: @escaping @Sendable () async -> [Completion]
+  ) async -> [Completion] {
+    await withTaskGroup(of: [Completion]?.self) { group in
+      group.addTask { await resolve() }
+      group.addTask {
+        try? await Task.sleep(for: timeout)
+        return nil
+      }
+      let first = await group.next() ?? nil
+      group.cancelAll()
+      return first ?? []
     }
   }
 

@@ -76,7 +76,9 @@ struct Exit: REPLCommand {
     exit(0)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+    nil
+  }
 }
 
 struct Help: REPLCommand {
@@ -98,7 +100,9 @@ struct Help: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+    nil
+  }
 }
 
 extension REPLCommand {
@@ -114,7 +118,9 @@ extension REPLCommand {
   }
 }
 
-final class REPLCommandRegistry {
+/// The commands the REPL knows. Registration happens once, during initialisation, after which
+/// the registry is only read — from the line editor as well as the command task.
+final class REPLCommandRegistry: @unchecked Sendable {
   static let shared = REPLCommandRegistry()
 
   var replCanonicalCommands = Swift.Set<String>()
