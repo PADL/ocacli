@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
+import ArgumentParser
 import AsyncLineReader
-import CommandLineKit
 import Foundation
 import Logging
 import SwiftOCA
@@ -50,7 +50,7 @@ enum ContextFlagsNames: Int, CaseIterable {
   }
 }
 
-struct ContextFlags: OptionSet, ConvertibleFromString {
+struct ContextFlags: OptionSet, ExpressibleByArgument {
   init(rawValue: UInt32) {
     self.rawValue = rawValue
   }
@@ -80,6 +80,10 @@ struct ContextFlags: OptionSet, ConvertibleFromString {
   init?(fromString string: String) {
     guard let flagName = ContextFlagsNames(fromString: string) else { return nil }
     self.init(flagName)
+  }
+
+  init?(argument: String) {
+    self.init(fromString: argument)
   }
 
   var connectionFlags: Ocp1ConnectionFlags {
