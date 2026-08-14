@@ -84,17 +84,23 @@ struct Watch: REPLCommand {
 
     await subject.subscribe(context.currentObject)
 
-    for try await result in subject.async {
-      switch result {
-      case let .success(value):
-        let string = await "\r" +
-          replString(for: value, context: context, object: context.currentObject)
-        fputs(string, stdout)
-        fflush(stdout)
-      case let .failure(error):
-        throw error
+    try await withInterruption {
+      for try await result in subject.async {
+        switch result {
+        case let .success(value):
+          let string = await "\r" +
+            replString(for: value, context: context, object: context.currentObject)
+          fputs(string, stdout)
+          fflush(stdout)
+        case let .failure(error):
+          throw error
+        }
       }
     }
+
+    /// the values above are printed without a newline, so start the next prompt on a fresh line
+    fputs("\r\n", stdout)
+    fflush(stdout)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
