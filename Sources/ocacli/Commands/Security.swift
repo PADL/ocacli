@@ -32,7 +32,7 @@ struct EnableControlSecurity: REPLCommand, REPLCurrentBlockCompletable, REPLClas
     try await timeSource.enableControlSecurity()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DisableControlSecurity: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -50,7 +50,7 @@ struct DisableControlSecurity: REPLCommand, REPLCurrentBlockCompletable, REPLCla
     try await timeSource.disableControlSecurity()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct AddPreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -75,7 +75,7 @@ struct AddPreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     try await securityManager.addPreSharedKey(identity: identity, key: LengthTaggedData(key))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct ChangePreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -100,7 +100,7 @@ struct ChangePreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     try await securityManager.changePreSharedKey(identity: identity, key: LengthTaggedData(key))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DeletePreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -121,5 +121,5 @@ struct DeletePreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     try await securityManager.deletePreSharedKey(identity: identity)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }

@@ -37,7 +37,7 @@ struct GetMembers: REPLCommand, REPLClassSpecificCommand {
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct GetGroupController: REPLCommand, REPLClassSpecificCommand {
@@ -58,7 +58,7 @@ struct GetGroupController: REPLCommand, REPLClassSpecificCommand {
     context.print(rolePath)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct AddMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -79,7 +79,7 @@ struct AddMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCom
     try await group.add(member: member.objectNumber)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DeleteMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -100,5 +100,5 @@ struct DeleteMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecific
     try await group.delete(member: member.objectNumber)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }

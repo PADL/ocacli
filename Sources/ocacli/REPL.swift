@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import AsyncLineReader
 import Foundation
 import SwiftOCA
 
@@ -42,7 +43,7 @@ protocol REPLCommand {
 
   init()
   func execute(with context: Context) async throws
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]?
+  static func getCompletions(with context: Context, buffer: String) async -> [String]?
 }
 
 extension REPLCommand {
@@ -59,8 +60,8 @@ extension REPLCommand {
 protocol REPLCurrentBlockCompletable: REPLCommand {}
 
 extension REPLCurrentBlockCompletable {
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
-    context.completions(forPartialRolePath: currentBuffer.replFinalWord)
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+    await context.resolveCompletions(forPartialRolePath: buffer.replFinalWord)
   }
 }
 
@@ -75,7 +76,7 @@ struct Exit: REPLCommand {
     exit(0)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct Help: REPLCommand {
@@ -97,7 +98,7 @@ struct Help: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 extension REPLCommand {
@@ -203,30 +204,32 @@ final class REPLCommandRegistry {
     return c
   }
 
-  /// Returns the complete command lines that `buffer` could be expanded to, by replacing the
-  /// word the cursor is on. The word is replaced rather than appended to, so that arguments
-  /// which are role paths can be completed one component at a time.
-  func getCompletions(from buffer: String, context: Context) -> [String]? {
+  /// Returns the completions for the word the cursor is on. Each one replaces just that word,
+  /// so an argument that is a role path can be completed a component at a time.
+  func getCompletions(from line: String, cursor: Int, context: Context) async -> [Completion] {
+    let buffer = String(Array(line)[0..<min(cursor, line.count)])
     let (tokens, endsWithSeparator) = replTokenize(buffer)
 
     let word: REPLToken? = endsWithSeparator ? nil : tokens.last
-    let prefix = buffer[buffer.startIndex..<(word?.start ?? buffer.endIndex)]
+    let start = word.map { buffer.distance(from: buffer.startIndex, to: $0.start) } ?? cursor
     let partial = word?.value ?? ""
 
-    let completions: [String]
+    let candidates: [String]
 
     if tokens.isEmpty || (tokens.count == 1 && !endsWithSeparator) {
-      completions = replCommands.keys.filter { $0.hasPrefix(partial) }
+      candidates = replCommands.keys.filter { $0.hasPrefix(partial) }
     } else {
       guard let type = replCommands[tokens[0].value],
-            let suffixes = type.getCompletions(with: context, currentBuffer: buffer)
+            let completions = await type.getCompletions(with: context, buffer: buffer)
       else {
-        return nil
+        return []
       }
-      completions = suffixes.filter { $0.hasPrefix(partial) }
+      candidates = completions.filter { $0.hasPrefix(partial) }
     }
 
-    return completions.sorted().map { prefix + replEscape($0, quoted: word?.isQuoted ?? false) }
+    return candidates.sorted().map {
+      Completion(replEscape($0, quoted: word?.isQuoted ?? false), replacing: start..<cursor)
+    }
   }
 }
 
@@ -397,7 +400,7 @@ extension CaseIterable {
   }
 }
 
-// https://stackoverflow.com/questions/26501276/converting-hex-string-to-nsdata-in-swift
+/// https://stackoverflow.com/questions/26501276/converting-hex-string-to-nsdata-in-swift
 extension Data {
   init?(hex: String) {
     guard hex.count.isMultiple(of: 2) else {

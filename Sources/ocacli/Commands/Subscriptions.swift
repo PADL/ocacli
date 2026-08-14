@@ -21,7 +21,9 @@ struct Subscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletabl
   static let name = ["subscribe"]
   static let summary = "Add an event subscription"
 
-  var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int {
+    0
+  }
 
   @REPLCommandArgument
   var object: OcaRoot!
@@ -50,7 +52,9 @@ struct Unsubscribe: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
   static let name = ["unsubscribe"]
   static let summary = "Remove an event subscription"
 
-  var minimumRequiredArguments: Int { 0 }
+  var minimumRequiredArguments: Int {
+    0
+  }
 
   @REPLCommandArgument
   var object: OcaRoot!
@@ -84,7 +88,7 @@ struct Watch: REPLCommand {
 
     await subject.subscribe(context.currentObject)
 
-    try await withInterruption {
+    try await context.withInterruption {
       for try await result in subject.async {
         switch result {
         case let .success(value):
@@ -98,12 +102,12 @@ struct Watch: REPLCommand {
       }
     }
 
-    /// the values above are printed without a newline, so start the next prompt on a fresh line
+    // the values above are printed without a newline, so start the next prompt on a fresh line
     fputs("\r\n", stdout)
     fflush(stdout)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
     context.currentObject.allPropertyKeyPathsUncached.map(\.key)
   }
 }

@@ -32,5 +32,5 @@ struct ResetTimeSource: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     try await timeSource.reset()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }

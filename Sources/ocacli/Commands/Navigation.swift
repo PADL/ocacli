@@ -27,7 +27,7 @@ struct PrintWorkingPath: REPLCommand {
     context.print(context.currentPathString)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct Up: REPLCommand {
@@ -40,7 +40,7 @@ struct Up: REPLCommand {
     try await context.changeCurrentPath(to: "..")
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct ChangePath: REPLCommand, REPLCurrentBlockCompletable {
@@ -167,5 +167,5 @@ struct Resolve: REPLCommand {
       )
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }

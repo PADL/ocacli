@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import AsyncLineReader
 import CommandLineKit
 import Foundation
 import Logging
@@ -363,6 +364,8 @@ enum DeviceEndpointInfo {
 final class Context: @unchecked Sendable {
   let connection: Ocp1Connection
   let logger: Logger
+  /// the line editor, when there is one, so that a command can be interrupted from the keyboard
+  var lineReader: AsyncLineReader.LineReader?
 
   // the following variables should only be mutated by the command sink (the async task)
   var contextFlags: ContextFlags
@@ -662,6 +665,8 @@ final class Context: @unchecked Sendable {
 
   /// Returns completions for a partially typed role path, e.g. `/Foo/Ba`. The returned
   /// completions include the leading portion of `path` so that they can replace it verbatim.
+  ///
+  /// This may query the device: the line editor awaits it rather than blocking on it.
   func resolveCompletions(forPartialRolePath path: String) async -> [String]? {
     let container: String
     let partialRole: String
@@ -697,29 +702,6 @@ final class Context: @unchecked Sendable {
     return completions.filter { $0.hasPrefix(partialRole) }.map { container + $0 }
   }
 
-  /// As above, but callable from the line editor, which runs on its own thread and cannot await.
-  /// Completions are best effort: if the device does not answer promptly we return none rather
-  /// than block the terminal indefinitely.
-  nonisolated func completions(forPartialRolePath path: String) -> [String]? {
-    final class Completions: @unchecked Sendable { var value: [String]? }
-
-    let completions = Completions()
-    let semaphore = DispatchSemaphore(value: 0)
-    let task = Task {
-      completions.value = await resolveCompletions(forPartialRolePath: path)
-      semaphore.signal()
-    }
-
-    guard semaphore.wait(timeout: .now() + Self.completionTimeout) == .success else {
-      task.cancel()
-      return nil
-    }
-
-    return completions.value
-  }
-
-  private static let completionTimeout = 2.0
-
   private var pathStack = [OcaRoot]()
 
   func pushPath(_ object: OcaRoot) async throws {
@@ -752,6 +734,15 @@ final class Context: @unchecked Sendable {
     } else {
       currentObject.objectNumber.oNoString
     }
+  }
+
+  /// Runs `body`, cancelling it if the user presses escape. Returns nil if it was interrupted.
+  @discardableResult
+  func withInterruption<T: Sendable>(
+    _ body: @escaping @Sendable () async throws -> T
+  ) async throws -> T? {
+    guard let lineReader else { return try await body() }
+    return try await lineReader.withInterruption(body)
   }
 
   let lock = NSRecursiveLock()
@@ -808,8 +799,6 @@ struct DumpSparseRolePathCache: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
-    nil
-  }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 #endif

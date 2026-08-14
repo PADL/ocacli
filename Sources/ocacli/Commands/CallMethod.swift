@@ -46,7 +46,5 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
-    nil
-  }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
