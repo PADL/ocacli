@@ -43,7 +43,7 @@ protocol REPLCommand {
 
   init()
   func execute(with context: Context) async throws
-  static func getCompletions(with context: Context, buffer: String) async -> [String]?
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]?
 }
 
 extension REPLCommand {
@@ -60,8 +60,8 @@ extension REPLCommand {
 protocol REPLCurrentBlockCompletable: REPLCommand {}
 
 extension REPLCurrentBlockCompletable {
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
-    await context.resolveCompletions(forPartialRolePath: buffer.replFinalWord)
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    await context.resolveCompletions(forPartialRolePath: currentBuffer.replFinalWord)
   }
 }
 
@@ -76,7 +76,7 @@ struct Exit: REPLCommand {
     exit(0)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     nil
   }
 }
@@ -100,7 +100,7 @@ struct Help: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     nil
   }
 }
@@ -310,7 +310,7 @@ final class REPLCommandRegistry: @unchecked Sendable {
       candidates = replCommands.keys.filter { $0.hasPrefix(partial) }
     } else {
       guard let type = replCommands[tokens[0].value],
-            let completions = await type.getCompletions(with: context, buffer: buffer)
+            let completions = await type.getCompletions(with: context, currentBuffer: buffer)
       else {
         return []
       }

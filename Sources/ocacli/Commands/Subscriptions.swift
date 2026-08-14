@@ -107,7 +107,7 @@ struct Watch: REPLCommand {
     fflush(stdout)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     context.currentObject.allPropertyKeyPathsUncached.map(\.key)
   }
 }

@@ -31,7 +31,7 @@ struct Flags: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct SetFlag: REPLCommand {
@@ -52,7 +52,7 @@ struct SetFlag: REPLCommand {
       .set(options: Ocp1ConnectionOptions(flags: context.contextFlags.connectionFlags))
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     ContextFlagsNames.allCaseNames
   }
 }
@@ -75,7 +75,7 @@ struct ClearFlag: REPLCommand {
       .set(options: Ocp1ConnectionOptions(flags: context.contextFlags.connectionFlags))
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? {
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     ContextFlagsNames.allCaseNames
   }
 }
