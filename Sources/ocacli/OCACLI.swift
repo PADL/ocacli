@@ -100,6 +100,20 @@ struct OCACLI: AsyncParsableCommand {
     if UInt16(exactly: port) == nil {
       throw ValidationError("'\(port)' is not a port number.")
     }
+
+    if let batchSize, UInt32(exactly: batchSize) == nil {
+      throw ValidationError("'\(batchSize)' is not a batch size.")
+    }
+
+    for (value, option) in [
+      (connectionTimeout, "--connection-timeout"),
+      (responseTimeout, "--response-timeout"),
+      (batchThreshold, "--batch-threshold"),
+    ] {
+      if let value, value < 0 {
+        throw ValidationError("\(option) cannot be negative.")
+      }
+    }
   }
 
   private func initContext() async throws -> Context {
@@ -178,11 +192,14 @@ struct OCACLI: AsyncParsableCommand {
     }
 
     let session = Session(context: context)
+    var succeeded = true
     if command.isEmpty {
       await session.runInteractively()
     } else {
-      await session.run(command)
+      succeeded = await session.run(command)
     }
     await session.finish()
+
+    guard succeeded else { throw ExitCode.failure }
   }
 }
