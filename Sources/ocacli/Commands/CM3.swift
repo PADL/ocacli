@@ -46,7 +46,7 @@ struct GetSourceConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockC
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct GetSinkConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -78,7 +78,7 @@ struct GetSinkConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCom
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct GetConnectorStatus: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -110,7 +110,7 @@ struct GetConnectorStatus: REPLCommand, REPLOptionalArguments, REPLCurrentBlockC
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct GetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -132,7 +132,7 @@ struct GetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
     print("\(nominalRate)")
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -165,5 +165,5 @@ struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }

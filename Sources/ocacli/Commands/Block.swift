@@ -35,7 +35,7 @@ struct ConstructActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClas
     _ = try await block.constructActionObject(factory: factory.objectNumber)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct DeleteActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -56,7 +56,7 @@ struct DeleteActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     try await block.delete(actionObject: actionObject.objectNumber)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct AddSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -101,7 +101,7 @@ struct AddSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecifi
     context.print(id)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct DeleteSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -123,7 +123,7 @@ struct DeleteSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     try await block.delete(signalPath: id)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -142,7 +142,7 @@ struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLCla
     context.print(signalPaths)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 private extension OcaActionObjectSearchResultFlags {
@@ -194,7 +194,7 @@ struct FindActionObjectsByRole: REPLCommand, REPLCurrentBlockCompletable, REPLCl
     try await execute(searchName, in: block, with: context)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 private protocol _FindActionObjectsRecursive {
@@ -253,7 +253,7 @@ struct FindActionObjectsByRoleRecursive: REPLCommand, REPLCurrentBlockCompletabl
     try await execute(searchName, in: block, with: context)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct FindActionObjectsByLabelRecursive: REPLCommand, REPLCurrentBlockCompletable,
@@ -284,5 +284,5 @@ struct FindActionObjectsByLabelRecursive: REPLCommand, REPLCurrentBlockCompletab
     try await execute(searchName, in: block, with: context)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }

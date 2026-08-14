@@ -27,7 +27,7 @@ struct Connect: REPLCommand {
     try await context.connection.connect()
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct Disconnect: REPLCommand {
@@ -40,7 +40,7 @@ struct Disconnect: REPLCommand {
     try await context.connection.disconnect()
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct ConnectionInfo: REPLCommand {
@@ -54,7 +54,7 @@ struct ConnectionInfo: REPLCommand {
     context.print("\(context.connection): \(isConnected ? "connected" : "disconnected")")
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct DeviceInfo: REPLCommand {
@@ -68,7 +68,7 @@ struct DeviceInfo: REPLCommand {
     return try await Show.show(context: context, object: deviceManager)
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 struct ClearCache: REPLCommand {
@@ -81,7 +81,7 @@ struct ClearCache: REPLCommand {
     await context.connection.clearObjectCache()
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
 extension Duration {
@@ -124,5 +124,5 @@ struct Statistics: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
