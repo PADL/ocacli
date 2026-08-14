@@ -370,7 +370,6 @@ final class Context: @unchecked Sendable {
 
   // the following variables can be read by the command source (the event loop)
   private(set) var currentObject: OcaRoot
-  private(set) var currentObjectCompletions: [String]? = []
   private var currentObjectPath: OcaNamePath? = [""]
   fileprivate var sparseRolePathCache: [OcaNamePath: OcaRoot] = [:]
 
@@ -549,6 +548,37 @@ final class Context: @unchecked Sendable {
     return object
   }
 
+  /// Resolves `.` and `..` components lexically. Relative paths containing them are rebased on
+  /// the current object path, which is only possible if it is known; otherwise the components
+  /// are left alone and resolution will fail as it did before.
+  private func _normalize(_ pathComponents: ([String], Bool)) -> ([String], Bool) {
+    var (components, absolute) = pathComponents
+
+    guard components.contains(where: { $0 == "." || $0 == ".." }) else {
+      return pathComponents
+    }
+
+    if !absolute {
+      guard let currentObjectPath else { return pathComponents }
+      components = currentObjectPath.filter { !$0.isEmpty } + components
+      absolute = true
+    }
+
+    var normalized = OcaNamePath()
+    for component in components {
+      switch component {
+      case ".":
+        break
+      case "..":
+        if !normalized.isEmpty { normalized.removeLast() }
+      default:
+        normalized.append(component)
+      }
+    }
+
+    return (normalized, absolute)
+  }
+
   func resolve<T: OcaRoot>(rolePath path: String) async throws -> T {
     let object: OcaRoot?
 
@@ -569,7 +599,7 @@ final class Context: @unchecked Sendable {
         object = await connection.rootBlock
       }
     } else {
-      let pathComponents = path.pathComponents
+      let pathComponents = _normalize(path.pathComponents)
       let baseObject = await pathComponents.1 ? connection.rootBlock : currentObject
 
       if pathComponents.0.isEmpty {
@@ -595,31 +625,100 @@ final class Context: @unchecked Sendable {
     try await changeCurrentPath(to: object)
   }
 
+  /// Returns the roles of the action objects of `block`, suffixed with a path separator if the
+  /// action object is itself a block. The device is only queried if the block's action objects
+  /// have not already been cached.
   private func _resolveObjectCompletions(
-    _ object: OcaRoot,
-    path: OcaNamePath
-  ) async throws -> [String]? {
-    guard let object = object as? OcaBlock else { return nil }
-    var currentObjectCompletions: [String]?
-    currentObjectCompletions = try? await object.cachedActionObjectRoles.map { _, role in
-      pathComponentsToPathString([role], absolute: false, escaping: true)
+    _ block: OcaBlock,
+    path: OcaNamePath?
+  ) async -> [String]? {
+    var roles: [(OcaRoot, OcaString)]? = try? await block.cachedActionObjectRoles
+
+    if roles == nil || roles!.isEmpty, let actionObjects = try? await block.resolveActionObjects() {
+      var resolvedRoles = [(OcaRoot, OcaString)]()
+      for actionObject in actionObjects {
+        guard let role = try? await actionObject.getRole() else { continue }
+        resolvedRoles.append((actionObject, role))
+      }
+      roles = resolvedRoles
     }
-    currentObjectCompletions?.append(contentsOf: sparseRolePathCache.keys.filter {
-      $0.count > path.count && Array($0.prefix(path.count)) == path
-    }.map { pathComponentsToPathString([$0[path.count]], absolute: false, escaping: true) })
-    return currentObjectCompletions
+
+    guard let roles else { return nil }
+
+    var completions = roles.map { $0.1 + ($0.0 is OcaBlock ? String(ocaPathSeparator) : "") }
+
+    // the sparse role path cache may know of descendants of `block` that we did not
+    // enumerate, because they were found with FindActionObjectsByPath()
+    if let path {
+      completions.append(contentsOf: sparseRolePathCache.keys.filter {
+        $0.count > path.count && Array($0.prefix(path.count)) == path
+      }.map {
+        $0[path.count] + ($0.count > path.count + 1 ? String(ocaPathSeparator) : "")
+      })
+    }
+
+    return Array(Swift.Set(completions)).sorted()
   }
 
-  func refreshCurrentObjectCompletions() async {
-    if let currentObjectPath {
-      currentObjectCompletions = try? await _resolveObjectCompletions(
-        currentObject,
-        path: currentObjectPath
-      )
+  /// Returns completions for a partially typed role path, e.g. `/Foo/Ba`. The returned
+  /// completions include the leading portion of `path` so that they can replace it verbatim.
+  func resolveCompletions(forPartialRolePath path: String) async -> [String]? {
+    let container: String
+    let partialRole: String
+
+    if let separatorIndex = path.lastIndex(of: ocaPathSeparator) {
+      container = String(path[...separatorIndex])
+      partialRole = String(path[path.index(after: separatorIndex)...])
     } else {
-      currentObjectCompletions = nil
+      container = ""
+      partialRole = path
     }
+
+    let object: OcaRoot
+    if container.isEmpty {
+      object = currentObject
+    } else if let containerObject: OcaRoot = try? await resolve(rolePath: container) {
+      object = containerObject
+    } else {
+      return nil
+    }
+
+    guard let block = object as? OcaBlock else { return nil }
+
+    let containerPath: OcaNamePath? = if container.isEmpty {
+      currentObjectPath
+    } else {
+      try? await block.getRolePath(flags: contextFlags.cachedPropertyResolutionFlags)
+    }
+
+    guard let completions = await _resolveObjectCompletions(block, path: containerPath)
+    else { return nil }
+
+    return completions.filter { $0.hasPrefix(partialRole) }.map { container + $0 }
   }
+
+  /// As above, but callable from the line editor, which runs on its own thread and cannot await.
+  /// Completions are best effort: if the device does not answer promptly we return none rather
+  /// than block the terminal indefinitely.
+  nonisolated func completions(forPartialRolePath path: String) -> [String]? {
+    final class Completions: @unchecked Sendable { var value: [String]? }
+
+    let completions = Completions()
+    let semaphore = DispatchSemaphore(value: 0)
+    let task = Task {
+      completions.value = await resolveCompletions(forPartialRolePath: path)
+      semaphore.signal()
+    }
+
+    guard semaphore.wait(timeout: .now() + Self.completionTimeout) == .success else {
+      task.cancel()
+      return nil
+    }
+
+    return completions.value
+  }
+
+  private static let completionTimeout = 2.0
 
   private var pathStack = [OcaRoot]()
 
@@ -645,7 +744,6 @@ final class Context: @unchecked Sendable {
       currentObjectPath = [rolePathString]
     }
     currentObject = object
-    await refreshCurrentObjectCompletions()
   }
 
   var currentPathString: String {
@@ -710,6 +808,8 @@ struct DumpSparseRolePathCache: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
+    nil
+  }
 }
 #endif

@@ -60,7 +60,7 @@ protocol REPLCurrentBlockCompletable: REPLCommand {}
 
 extension REPLCurrentBlockCompletable {
   static func getCompletions(with context: Context, currentBuffer: String) -> [String]? {
-    context.currentObjectCompletions
+    context.completions(forPartialRolePath: currentBuffer.replFinalWord)
   }
 }
 
@@ -132,16 +132,8 @@ final class REPLCommandRegistry {
     }
   }
 
-  // https://stackoverflow.com/questions/42484311/swift-split-string-to-array-with-exclusion
   func tokenizeCommand(_ command: String) -> [String] {
-    let pattern = "([^\\s\"]+|\"[^\"]+\")"
-    let regex = try! NSRegularExpression(pattern: pattern, options: [])
-    let arr = regex.matches(in: command, options: [], range: NSRange(0..<command.utf16.count))
-      .map {
-        (command as NSString).substring(with: $0.range(at: 1))
-          .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-      }
-    return arr
+    replTokenize(command).tokens.map(\.value)
   }
 
   func command(from arguments: [String], context: Context) async throws -> REPLCommand {
@@ -211,23 +203,30 @@ final class REPLCommandRegistry {
     return c
   }
 
+  /// Returns the complete command lines that `buffer` could be expanded to, by replacing the
+  /// word the cursor is on. The word is replaced rather than appended to, so that arguments
+  /// which are role paths can be completed one component at a time.
   func getCompletions(from buffer: String, context: Context) -> [String]? {
-    let tokens = tokenizeCommand(buffer)
-    let completions: [String]?
+    let (tokens, endsWithSeparator) = replTokenize(buffer)
 
-    if tokens.count == 0 {
-      completions = nil
-    } else if tokens.count == 1, replCommands[tokens[0]] == nil {
-      completions = Array(replCommands.keys)
+    let word: REPLToken? = endsWithSeparator ? nil : tokens.last
+    let prefix = buffer[buffer.startIndex..<(word?.start ?? buffer.endIndex)]
+    let partial = word?.value ?? ""
+
+    let completions: [String]
+
+    if tokens.isEmpty || (tokens.count == 1 && !endsWithSeparator) {
+      completions = replCommands.keys.filter { $0.hasPrefix(partial) }
     } else {
-      guard let type = replCommands[tokens[0]] else {
+      guard let type = replCommands[tokens[0].value],
+            let suffixes = type.getCompletions(with: context, currentBuffer: buffer)
+      else {
         return nil
       }
-      let suffixes = type.getCompletions(with: context, currentBuffer: buffer)
-      completions = suffixes?.map { "\(tokens[0]) \($0)" }
+      completions = suffixes.filter { $0.hasPrefix(partial) }
     }
 
-    return completions
+    return completions.sorted().map { prefix + replEscape($0, quoted: word?.isQuoted ?? false) }
   }
 }
 

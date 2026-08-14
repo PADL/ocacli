@@ -140,18 +140,14 @@ extension OcaRoot {
   }
 }
 
+let ocaPathSeparator: Character = "/"
 
 func pathComponentsToPathString(
   _ path: OcaNamePath,
-  absolute: Bool = true,
-  escaping: Bool = false
+  absolute: Bool = true
 ) -> String {
-  let pathString = (absolute ? "/" : "") + path.joined(separator: "/")
-  if escaping && pathString.contains(" ") {
-    return "\"\(pathString)\""
-  } else {
-    return pathString
-  }
+  (absolute ? String(ocaPathSeparator) : "") + path
+    .joined(separator: String(ocaPathSeparator))
 }
 
 extension [String] {
@@ -161,16 +157,15 @@ extension [String] {
 }
 
 extension String {
+  /// Splits a role path into its components and a flag indicating whether it is absolute.
+  /// Empty components are elided, so that leading, trailing and repeated separators are all
+  /// tolerated (`/Foo/Bar/` resolves the same object as `/Foo/Bar`).
   var pathComponents: ([String], Bool) {
-    let namePath = OcaNamePath(components(separatedBy: "/"))
-    if namePath.count > 0, namePath.first!.isEmpty {
-      if namePath.allSatisfy(\.isEmpty) {
-        return ([], true)
-      } else {
-        return (Array(namePath[1...]), true)
-      }
-    } else {
-      return (namePath, false)
-    }
+    let absolute = first == ocaPathSeparator
+    let namePath = OcaNamePath(
+      components(separatedBy: String(ocaPathSeparator))
+        .filter { !$0.isEmpty }
+    )
+    return (namePath, absolute)
   }
 }
