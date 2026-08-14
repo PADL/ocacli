@@ -549,11 +549,16 @@ final class OCACLI: Command {
     guard let lineReader else { throw Ocp1Error.invalidHandle }
 
     lineReader.setCompletionCallback { currentBuffer in
-      guard let completions = self.commands.getCompletions(
-        from: currentBuffer,
-        context: self.context
-      ) else { return [] }
-      return completions.filter { $0.hasPrefix(currentBuffer) }
+      let completions = self.commands
+        .getCompletions(from: currentBuffer, context: self.context) ?? []
+      guard !completions.isEmpty else {
+        // the line reader inserts a literal tab if we return nothing at all, so ring the
+        // bell ourselves and offer the line back unchanged
+        fputs("\u{07}", stdout)
+        fflush(stdout)
+        return [currentBuffer]
+      }
+      return completions
     }
 
     var done = false

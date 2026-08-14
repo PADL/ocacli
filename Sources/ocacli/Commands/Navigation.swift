@@ -115,10 +115,6 @@ struct List: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
     for role in roles.sorted() {
       context.print(role)
     }
-
-    if object == context.currentObject {
-      await context.refreshCurrentObjectCompletions()
-    }
   }
 }
 
