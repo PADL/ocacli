@@ -35,7 +35,7 @@ struct ApplyParamDataSet: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     try await block.apply(paramDataset: paramDataset)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct StoreCurrentParamData: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -56,7 +56,7 @@ struct StoreCurrentParamData: REPLCommand, REPLCurrentBlockCompletable, REPLClas
     try await block.store(currentParameterData: currentParameterData)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct FetchCurrentParameterData: REPLCommand, REPLCurrentBlockCompletable,
@@ -77,7 +77,7 @@ struct FetchCurrentParameterData: REPLCommand, REPLCurrentBlockCompletable,
     print("0x\(Data(paramData).hexString))")
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct ApplyParameterData: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -99,7 +99,7 @@ struct ApplyParameterData: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     try await block.apply(parameterData: OcaLongBlob(parameterData))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct ApplyPatch: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -120,7 +120,7 @@ struct ApplyPatch: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCo
     try await block.applyPatch(datasetONo: datasetONo)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 // Per-read chunk size for dump-dataset. The device may return less if it's hit
@@ -189,7 +189,7 @@ struct DumpDataset: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct LoadDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -230,7 +230,7 @@ struct LoadDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificC
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct ClearDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -255,7 +255,7 @@ struct ClearDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecific
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct GetDatasetSizes: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -274,7 +274,7 @@ struct GetDatasetSizes: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     context.print("current: \(current) max: \(max)")
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct ConstructDataset: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -323,7 +323,7 @@ struct ConstructDataset: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCom
     context.print(oNo.oNoString)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DuplicateDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -359,7 +359,7 @@ struct DuplicateDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     context.print(oNo.oNoString)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct GetDatasetObjectsRecursive: REPLCommand, REPLCurrentBlockCompletable,
@@ -382,7 +382,7 @@ struct GetDatasetObjectsRecursive: REPLCommand, REPLCurrentBlockCompletable,
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 private func printDatasetSearchResults(
@@ -427,7 +427,7 @@ struct FindDatasets: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComplet
     printDatasetSearchResults(results, context: context)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct FindDatasetsRecursive: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -461,5 +461,5 @@ struct FindDatasetsRecursive: REPLCommand, REPLOptionalArguments, REPLCurrentBlo
     printDatasetSearchResults(results, context: context)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }

@@ -15,6 +15,7 @@
 //
 
 import AsyncAlgorithms
+import AsyncLineReader
 import CommandLineKit
 import Foundation
 import Logging
@@ -22,7 +23,15 @@ import SwiftOCA
 import SwiftOCASecure
 
 @main
-final class OCACLI: Command {
+enum Main {
+  static func main() async {
+    let cli = OCACLI()
+    cli.parseArguments()
+    await cli.run()
+  }
+}
+
+final class OCACLI {
   @CommandArgument(short: "h", long: "hostname", description: "Device host name")
   private var hostname: String?
   @CommandArguments(short: "c", long: "command", description: "Commands to execute")
@@ -138,7 +147,7 @@ final class OCACLI: Command {
   )
   private var batchThreshold: Int?
 
-  private let lineReader = LineReader()
+  private let lineReader = AsyncLineReader.LineReader()
   private let commands = REPLCommandRegistry.shared
   private static var savedTermios: termios = {
     var term = termios()
@@ -146,10 +155,7 @@ final class OCACLI: Command {
     return term
   }()
 
-  private typealias CommandTokens = [String]
   private var context: Context!
-  private var commandSourceStream: AsyncStream<CommandTokens>!
-  private let commandDidComplete = DispatchSemaphore(value: 0)
 
   init() {
     commands.register(AddMember.self)
@@ -238,6 +244,34 @@ final class OCACLI: Command {
     commands.register(Watch.self)
   }
 
+  /// Registers the flags declared above and parses the command line. This is what the
+  /// CommandLineKit `Command` protocol does for a synchronous tool; ocacli's entry point is
+  /// asynchronous, so it is spelled out here.
+  func parseArguments() {
+    let flags = CommandLineKit.Flags(
+      toolName: CommandLine.arguments.first.map {
+        URL(fileURLWithPath: $0).lastPathComponent
+      } ?? "ocacli",
+      arguments: Array(CommandLine.arguments.dropFirst())
+    )
+    let converter = ArgumentNameConverter(.lowercase)
+
+    for child in Mirror(reflecting: self).children {
+      guard let wrapper = child.value as? FlagWrapper else { continue }
+      guard let label = child.label else {
+        wrapper.register(as: nil, with: flags)
+        continue
+      }
+      let name = label.hasPrefix("_") ? String(label.dropFirst()) : label
+      wrapper.register(as: converter.convert(name), with: flags)
+    }
+
+    if let reason = flags.parsingFailure() {
+      print(reason)
+      exit(1)
+    }
+  }
+
   private func usage() -> Never {
     print(
       flags.usageDescription(
@@ -250,18 +284,6 @@ final class OCACLI: Command {
       terminator: ""
     )
     exit(1)
-  }
-
-  private func readCommand(_ ln: LineReader, withPrompt prompt: String) throws -> String {
-    let commandLine = try ln.readLine(
-      prompt: prompt,
-      maxCount: 200,
-      strippingNewline: true,
-      promptProperties: TextProperties(.green, nil, .bold),
-      readProperties: TextProperties(.blue, nil),
-      parenProperties: TextProperties(.red, nil, .bold)
-    )
-    return commandLine
   }
 
   private func initContext() async throws -> Context {
@@ -522,12 +544,6 @@ final class OCACLI: Command {
     return Ocp1TLSRevocationOptions(flags: flags, crls: crlFile.map { .crlFile($0) })
   }
 
-  private func readCommand() throws -> [String] {
-    let prompt = "\(context.currentPathString)> "
-    let commandLine = try readCommand(lineReader!, withPrompt: prompt)
-    return commands.tokenizeCommand(commandLine)
-  }
-
   private func executeCommand(context: Context, tokens: [String]) async throws {
     guard tokens.count > 0 else { return }
     let command = try await commands.command(
@@ -542,34 +558,42 @@ final class OCACLI: Command {
     try await command.execute(with: context)
   }
 
-  private func commandSourceEventLoop(
-    _ continuation: AsyncStream<CommandTokens>
-      .Continuation
-  ) throws {
-    guard let lineReader else { throw Ocp1Error.invalidHandle }
+  /// The prompt, the line being typed, and a bracket under the cursor.
+  private static let style = Style.attributes(
+    prompt: TextAttributes(.green, bold: true),
+    input: TextAttributes(.blue),
+    matchingBracket: TextAttributes(.red, bold: true)
+  )
 
-    lineReader.setCompletionCallback { currentBuffer in
-      let completions = self.commands
-        .getCompletions(from: currentBuffer, context: self.context) ?? []
-      guard !completions.isEmpty else {
-        // the line reader inserts a literal tab if we return nothing at all, so ring the
-        // bell ourselves and offer the line back unchanged
-        fputs("\u{07}", stdout)
-        fflush(stdout)
-        return [currentBuffer]
-      }
-      return completions
+  private func prepareLineReader() async {
+    await lineReader.setStyle(Self.style)
+    await lineReader.setMaximumLineLength(200)
+    await lineReader.setCompletionHandler { [commands, weak self] line, cursor in
+      guard let self, let context else { return [] }
+      return await commands.getCompletions(from: line, cursor: cursor, context: context)
     }
+  }
 
-    var done = false
-    while !done {
+  /// Reads and executes commands until the user exits. Completions and commands are awaited on
+  /// the same task as the reader, so a command can take as long as it likes without a thread
+  /// being parked on its behalf.
+  private func replLoop() async {
+    await prepareLineReader()
+
+    while true {
+      let line: String
       do {
-        commandDidComplete.wait()
-        let tokens = try readCommand()
-        continuation.yield(tokens)
-        lineReader.addHistory(tokens.joined(separator: " "))
-      } catch LineReaderError.CTRLC, LineReaderError.EOF {
-        done = true
+        line = try await lineReader.readLine(prompt: "\(context.currentPathString)> ")
+      } catch {
+        // Ctrl-C or end of input
+        return
+      }
+
+      let tokens = commands.tokenizeCommand(line)
+      guard !tokens.isEmpty else { continue }
+
+      do {
+        try await executeCommand(context: context, tokens: tokens)
       } catch {
         context.print(error)
       }
@@ -601,63 +625,42 @@ final class OCACLI: Command {
     tcsetattr(STDIN_FILENO, TCSADRAIN, &term)
   }
 
-  private func initCommandSourceStream() -> AsyncStream<CommandTokens>.Continuation {
-    var continuation: AsyncStream<CommandTokens>.Continuation!
-    commandSourceStream = AsyncStream<CommandTokens> {
-      let task = Task {
-        do {
-          self.context = try await self.initContext()
-        } catch {
-          print(error)
-          exit(2)
-        }
-        self.monitorConnectionState()
-        commandDidComplete.signal()
-        for await tokens in commandSourceStream {
-          do {
-            try await executeCommand(context: context, tokens: tokens)
-          } catch {
-            context.print(error)
-            if isBatchMode { try await Exit().execute(with: context) }
-          }
-          commandDidComplete.signal()
-        }
-      }
-      $0.onTermination = { @Sendable _ in
-        task.cancel()
-      }
-      continuation = $0
-    }
-    return continuation
-  }
-
-  private func runInteractiveMode() throws {
-    let continuation = initCommandSourceStream()
-    DispatchQueue(label: "com.padl.ocacli.repl", qos: .utility).sync {
-      try? self.commandSourceEventLoop(continuation)
-      continuation.yield([Exit.name[0]])
-    }
-  }
-
-  private func runBatchMode(_ commandsToExecute: [String]) throws {
-    let continuation = initCommandSourceStream()
-    for commandToExecute in commandsToExecute + [Exit.name[0]] {
+  private func batchLoop(_ commandsToExecute: [String]) async {
+    for commandToExecute in commandsToExecute {
       let tokens = commands.tokenizeCommand(commandToExecute)
-      continuation.yield(tokens)
+      guard !tokens.isEmpty else { continue }
+
+      do {
+        try await executeCommand(context: context, tokens: tokens)
+      } catch {
+        context.print(error)
+        break
+      }
     }
   }
 
-  func run() throws {
+  func run() async {
     LoggingSystem.bootstrap { StreamLogHandler.standardError(label: $0) }
     _ = Self.savedTermios
 
     signal(SIGPIPE, SIG_IGN)
 
-    if isBatchMode {
-      try runBatchMode(commandsToExecute)
-    } else {
-      try runInteractiveMode()
+    do {
+      context = try await initContext()
+    } catch {
+      print(error)
+      exit(2)
     }
-    dispatchMain()
+    monitorConnectionState()
+
+    if isBatchMode {
+      await batchLoop(commandsToExecute)
+    } else {
+      // commands may be interrupted from the keyboard only when there is a keyboard to read
+      context.lineReader = lineReader
+      await replLoop()
+    }
+
+    try? await Exit().execute(with: context)
   }
 }

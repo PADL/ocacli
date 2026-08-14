@@ -159,7 +159,7 @@ struct StartUpdateProcess: REPLCommand, REPLClassSpecificCommand {
     try await firmwareManager.startUpdateProcess()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 private func _parseAsyncCommandLineOption(_ async: String?) throws -> Bool? {
@@ -234,7 +234,7 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
     try await firmwareManager.endActiveImageUpdate()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct BeginPassiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOptionalArguments {
@@ -287,7 +287,7 @@ struct BeginPassiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLO
     )
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct EndUpdateProcess: REPLCommand, REPLClassSpecificCommand {
@@ -305,7 +305,7 @@ struct EndUpdateProcess: REPLCommand, REPLClassSpecificCommand {
     try await firmwareManager.endUpdateProcess()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPLOptionalArguments {
@@ -371,7 +371,7 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
     try await firmwareManager.endUpdateProcess()
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 extension Context {

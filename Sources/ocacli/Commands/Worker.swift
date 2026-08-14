@@ -43,7 +43,7 @@ struct GetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     context.print(port)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct GetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -72,7 +72,7 @@ struct GetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     context.print(port)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct SetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -105,7 +105,7 @@ struct SetInputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct SetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -138,7 +138,7 @@ struct SetOutputPortName: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DeleteInputPort: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -160,7 +160,7 @@ struct DeleteInputPort: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     try await worker.delete(portID: OcaPortID(mode: .input, index: id))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DeleteOutputPort: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -182,7 +182,7 @@ struct DeleteOutputPort: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     try await worker.delete(portID: OcaPortID(mode: .output, index: id))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct GetInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
@@ -208,7 +208,7 @@ struct GetInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
     context.print(port)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct GetOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
@@ -234,7 +234,7 @@ struct GetOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
     context.print(port)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct SetInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
@@ -280,7 +280,7 @@ struct SetInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
     )
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct SetOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
@@ -326,7 +326,7 @@ struct SetOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
     )
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DeleteInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
@@ -350,7 +350,7 @@ struct DeleteInputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
     try await worker.delete(portID: OcaPortID(mode: .input, index: id))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
 
 struct DeleteOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
@@ -374,5 +374,5 @@ struct DeleteOutputPortClockMapEntry: REPLCommand, REPLCurrentBlockCompletable,
     try await worker.delete(portID: OcaPortID(mode: .output, index: id))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) -> [String]? { nil }
+  static func getCompletions(with context: Context, buffer: String) async -> [String]? { nil }
 }
