@@ -14,296 +14,138 @@
 // limitations under the License.
 //
 
+import ArgumentParser
 import AsyncAlgorithms
-import AsyncLineReader
-import CommandLineKit
 import Foundation
 import Logging
 import SwiftOCA
 import SwiftOCASecure
 
 @main
-enum Main {
-  static func main() async {
-    let cli = OCACLI()
-    cli.parseArguments()
-    await cli.run()
-  }
-}
+struct OCACLI: AsyncParsableCommand {
+  static let configuration = CommandConfiguration(
+    commandName: "ocacli",
+    abstract: "Control an AES70/OCA device.",
+    // -h is the device host name, so help is offered under its long name only
+    helpNames: [.long]
+  )
 
-final class OCACLI {
-  @CommandArgument(short: "h", long: "hostname", description: "Device host name")
-  private var hostname: String?
-  @CommandArguments(short: "c", long: "command", description: "Commands to execute")
-  private var commandsToExecute: [String]
-  @CommandArguments(short: "f", long: "flags", description: "Context flags")
-  private var contextFlags: [ContextFlags]
-  @CommandArgument(short: "p", long: "port", description: "Device port")
-  private var port: Int = 65000
-  @CommandOption(short: "U", long: "udp", description: "Use UDP instead of TCP")
-  private var datagram: Bool
-  @CommandOption(short: "w", long: "websocket", description: "Use WebSocket instead of TCP")
-  private var webSocket: Bool
-  @CommandOption(
-    short: "S",
-    long: "tls",
-    description: "Use TLS over TCP; combine with -U for DTLS over UDP"
+  @Option(name: [.short, .long], help: "Device host name")
+  var hostname: String?
+  @Option(name: [.customShort("c"), .customLong("command")], help: "Commands to execute")
+  var commandsToExecute: [String] = []
+  @Option(name: [.customShort("f"), .customLong("flags")], help: "Context flags")
+  var contextFlags: [ContextFlags] = []
+  @Option(name: [.short, .long], help: "Device port")
+  var port: Int = 65000
+  @Flag(name: [.customShort("U"), .customLong("udp")], help: "Use UDP instead of TCP")
+  var datagram = false
+  @Flag(
+    name: [.customShort("w"), .customLong("websocket")],
+    help: "Use WebSocket instead of TCP"
   )
-  private var tls: Bool
-  @CommandArgument(
-    long: "psk-identity",
-    description: "TLS PSK identity (default: OCA-PSK)"
+  var webSocket = false
+  @Flag(
+    name: [.customShort("S"), .long],
+    help: "Use TLS over TCP; combine with -U for DTLS over UDP"
   )
-  private var pskIdentity: String?
-  @CommandArgument(long: "psk-key", description: "TLS PSK key, hex-encoded")
-  private var pskKey: String?
-  @CommandArgument(long: "cert", description: "TLS client certificate PEM file")
-  private var certFile: String?
-  @CommandArgument(long: "key", description: "TLS client private key PEM file")
-  private var keyFile: String?
-  @CommandArgument(
-    long: "pkcs12",
-    description: "TLS client PKCS#12 bundle path"
+  var tls = false
+  @Option(name: .long, help: "TLS PSK identity (default: OCA-PSK)")
+  var pskIdentity: String?
+  @Option(name: .long, help: "TLS PSK key, hex-encoded")
+  var pskKey: String?
+  @Option(name: .customLong("cert"), help: "TLS client certificate PEM file")
+  var certFile: String?
+  @Option(name: .customLong("key"), help: "TLS client private key PEM file")
+  var keyFile: String?
+  @Option(name: .customLong("pkcs12"), help: "TLS client PKCS#12 bundle path")
+  var pkcs12File: String?
+  @Option(
+    name: .customLong("pkcs12-password"),
+    help: "PKCS#12 bundle password (env: OCACLI_PKCS12_PASSWORD; prompted if omitted)"
   )
-  private var pkcs12File: String?
-  @CommandArgument(
-    long: "pkcs12-password",
-    description: "PKCS#12 bundle password (env: OCACLI_PKCS12_PASSWORD; prompted if omitted)"
+  var pkcs12Password: String?
+  @Flag(
+    name: [.customShort("k"), .long],
+    help: "Disable TLS server certificate verification (cert credentials only; for testing)"
   )
-  private var pkcs12Password: String?
-  @CommandOption(
-    short: "k",
-    long: "insecure",
-    description: "Disable TLS server certificate verification (cert credentials only; for testing)"
-  )
-  private var insecure: Bool
-  @CommandArgument(
-    long: "cacert",
-    description: "PEM CA bundle for TLS server-cert verification"
-  )
-  private var caCertFile: String?
-  @CommandArgument(
-    long: "crl-file",
-    description: "PEM CRL bundle for TLS revocation checking"
-  )
-  private var crlFile: String?
-  @CommandOption(
-    long: "check-revocation",
-    description: "Enable TLS revocation checking against leaf certificate"
-  )
-  private var checkRevocation: Bool
-  @CommandOption(
-    long: "check-revocation-all",
-    description: "Enable TLS revocation checking across the full chain"
-  )
-  private var checkRevocationAll: Bool
-  @CommandArgument(short: "P", long: "path", description: "Domain socket path")
-  private var path: String?
+  var insecure = false
+  @Option(name: .customLong("cacert"), help: "PEM CA bundle for TLS server-cert verification")
+  var caCertFile: String?
+  @Option(name: .customLong("crl-file"), help: "PEM CRL bundle for TLS revocation checking")
+  var crlFile: String?
+  @Flag(name: .long, help: "Enable TLS revocation checking against leaf certificate")
+  var checkRevocation = false
+  @Flag(name: .long, help: "Enable TLS revocation checking across the full chain")
+  var checkRevocationAll = false
+  @Option(name: [.customShort("P"), .long], help: "Domain socket path")
+  var path: String?
   #if canImport(Darwin)
-  @CommandArgument(short: "M", long: "mach", description: "Mach port bootstrap service name")
-  private var machServiceName: String?
+  @Option(name: [.customShort("M"), .customLong("mach")], help: "Mach port bootstrap service name")
+  var machServiceName: String?
   #endif
-  @CommandOption(
-    short: "a",
-    long: "automatic-reconnect",
-    description: "Attempt to reconnect on disconnection"
+  @Flag(name: [.customShort("a"), .long], help: "Attempt to reconnect on disconnection")
+  var automaticReconnect = false
+  @Flag(name: [.customShort("r"), .long], help: "Resolve device action objects at startup")
+  var resolveDeviceTree = false
+  @Flag(
+    name: [.customShort("s"), .customLong("subscribe-properties")],
+    help: "Subscribe to property change events"
   )
-  private var automaticReconnect: Bool
-  @CommandOption(
-    short: "r",
-    long: "resolve-device-tree",
-    description: "Resolve device action objects at startup"
-  )
-  private var resolveDeviceTree: Bool
-  @CommandOption(
-    short: "s",
-    long: "subscribe-properties",
-    description: "Subscribe to property change events"
-  )
-  private var cacheProperties: Bool
-  @CommandArgument(short: "l", long: "log-level", description: "Log level")
-  private var logLevel: String?
-  @CommandOption(long: "help", description: "Show usage description")
-  private var help: Bool
-  @CommandFlags // Inject the flags object
-  private var flags: CommandLineKit.Flags
-  @CommandArgument(
-    short: "t",
-    long: "connection-timeout",
-    description: "Connection timeout (seconds)"
-  )
-  private var connectionTimeout: Int?
-  @CommandArgument(short: "T", long: "response-timeout", description: "Response timeout (seconds)")
-  private var responseTimeout: Int?
-  @CommandArgument(
-    short: "B",
-    long: "batch-size",
-    description: "Request message batch size (bytes)"
-  )
-  private var batchSize: Int?
-  @CommandArgument(
-    long: "batch-threshold",
-    description: "Request message batch threshold (milliseconds)"
-  )
-  private var batchThreshold: Int?
+  var cacheProperties = false
+  @Option(name: [.customShort("l"), .long], help: "Log level")
+  var logLevel: String?
+  @Option(name: [.customShort("t"), .long], help: "Connection timeout (seconds)")
+  var connectionTimeout: Int?
+  @Option(name: [.customShort("T"), .long], help: "Response timeout (seconds)")
+  var responseTimeout: Int?
+  @Option(name: [.customShort("B"), .long], help: "Request message batch size (bytes)")
+  var batchSize: Int?
+  @Option(name: .long, help: "Request message batch threshold (milliseconds)")
+  var batchThreshold: Int?
 
-  private let lineReader = AsyncLineReader.LineReader()
-  private let commands = REPLCommandRegistry.shared
-  private static var savedTermios: termios = {
-    var term = termios()
-    tcgetattr(STDIN_FILENO, &term)
-    return term
-  }()
-
-  private var context: Context!
-
-  init() {
-    commands.register(AddMember.self)
-    commands.register(AddPreSharedKey.self)
-    commands.register(AddSignalPath.self)
-    commands.register(ApplyParamDataSet.self)
-    commands.register(ApplyParameterData.self)
-    commands.register(ApplyPatch.self)
-    commands.register(BeginActiveComponentUpdate.self)
-    commands.register(BeginPassiveComponentUpdate.self)
-    commands.register(CallMethod.self)
-    commands.register(ChangePreSharedKey.self)
-    commands.register(ChangePath.self)
-    commands.register(ClearCache.self)
-    commands.register(ClearDataset.self)
-    commands.register(ClearFlag.self)
-    commands.register(Connect.self)
-    commands.register(ConnectionInfo.self)
-    commands.register(ConstructActionObject.self)
-    commands.register(ConstructDataset.self)
-    commands.register(DeleteActionObject.self)
-    commands.register(DeleteMember.self)
-    commands.register(DeleteInputPort.self)
-    commands.register(DeleteOutputPort.self)
-    commands.register(DeleteInputPortClockMapEntry.self)
-    commands.register(DeleteOutputPortClockMapEntry.self)
-    commands.register(DeletePreSharedKey.self)
-    commands.register(DeleteSignalPath.self)
-    commands.register(DisableControlSecurity.self)
-    commands.register(DeviceInfo.self)
-    commands.register(Disconnect.self)
-    commands.register(Dump.self)
-    commands.register(DumpDataset.self)
-    #if DEBUG
-    commands.register(DumpSparseRolePathCache.self)
+  func validate() throws {
+    #if canImport(Darwin)
+    let endpoint = hostname ?? path ?? machServiceName
+    let endpointOptions = "--hostname, --path or --mach"
+    #else
+    let endpoint = hostname ?? path
+    let endpointOptions = "--hostname or --path"
     #endif
-    commands.register(DuplicateDataset.self)
-    commands.register(EnableControlSecurity.self)
-    commands.register(EndUpdateProcess.self)
-    commands.register(Exit.self)
-    commands.register(FetchCurrentParameterData.self)
-    commands.register(FindActionObjectsByLabelRecursive.self)
-    commands.register(FindActionObjectsByRole.self)
-    commands.register(FindActionObjectsByRoleRecursive.self)
-    commands.register(FindDatasets.self)
-    commands.register(FindDatasetsRecursive.self)
-    commands.register(FirmwareImageContainerUpdate.self)
-    commands.register(Flags.self)
-    commands.register(Get.self)
-    commands.register(GetConnectorStatus.self)
-    commands.register(GetDatasetObjectsRecursive.self)
-    commands.register(GetDatasetSizes.self)
-    commands.register(GetGroupController.self)
-    commands.register(GetInputPortName.self)
-    commands.register(GetMembers.self)
-    commands.register(GetOutputPortName.self)
-    commands.register(GetSignalPathRecursive.self)
-    commands.register(SetInputPortClockMapEntry.self)
-    commands.register(SetOutputPortClockMapEntry.self)
-    commands.register(GetSinkConnector.self)
-    commands.register(GetSourceConnector.self)
-    commands.register(GetNominalMediaClockRate.self)
-    commands.register(List.self)
-    commands.register(ListObjectNumbers.self)
-    commands.register(LoadDataset.self)
-    commands.register(LockNoReadWrite.self)
-    commands.register(LockNoWrite.self)
-    commands.register(PrintWorkingPath.self)
-    commands.register(PushPath.self)
-    commands.register(PopPath.self)
-    commands.register(ResetTimeSource.self)
-    commands.register(Resolve.self)
-    commands.register(SetFlag.self)
-    commands.register(Set.self)
-    commands.register(SetInputPortName.self)
-    commands.register(SetOutputPortName.self)
-    commands.register(SetNominalMediaClockRate.self)
-    commands.register(Show.self)
-    commands.register(StartUpdateProcess.self)
-    commands.register(Statistics.self)
-    commands.register(StoreCurrentParamData.self)
-    commands.register(Subscribe.self)
-    commands.register(Unlock.self)
-    commands.register(Up.self)
-    commands.register(Unsubscribe.self)
-    commands.register(Watch.self)
-  }
-
-  /// Registers the flags declared above and parses the command line. This is what the
-  /// CommandLineKit `Command` protocol does for a synchronous tool; ocacli's entry point is
-  /// asynchronous, so it is spelled out here.
-  func parseArguments() {
-    let flags = CommandLineKit.Flags(
-      toolName: CommandLine.arguments.first.map {
-        URL(fileURLWithPath: $0).lastPathComponent
-      } ?? "ocacli",
-      arguments: Array(CommandLine.arguments.dropFirst())
-    )
-    let converter = ArgumentNameConverter(.lowercase)
-
-    for child in Mirror(reflecting: self).children {
-      guard let wrapper = child.value as? FlagWrapper else { continue }
-      guard let label = child.label else {
-        wrapper.register(as: nil, with: flags)
-        continue
-      }
-      let name = label.hasPrefix("_") ? String(label.dropFirst()) : label
-      wrapper.register(as: converter.convert(name), with: flags)
+    guard endpoint != nil else {
+      throw ValidationError("A device must be given with \(endpointOptions).")
     }
 
-    if let reason = flags.parsingFailure() {
-      print(reason)
-      exit(1)
+    if let logLevel, Logger.Level(rawValue: logLevel) == nil {
+      throw ValidationError(
+        "'\(logLevel)' is not a log level: expected one of " +
+          Logger.Level.allCases.map(\.rawValue).joined(separator: ", ") + "."
+      )
     }
-  }
 
-  private func usage() -> Never {
-    print(
-      flags.usageDescription(
-        usageName: TextStyle.bold.properties.apply(to: "usage:"),
-        synopsis: "[<option> ...] [---] [<program> <arg> ...]",
-        usageStyle: TextProperties.empty,
-        optionsName: TextStyle.bold.properties.apply(to: "options:"),
-        flagStyle: TextStyle.italic.properties
-      ),
-      terminator: ""
-    )
-    exit(1)
+    #if canImport(Darwin)
+    let isLocal = path != nil || machServiceName != nil
+    #else
+    let isLocal = path != nil
+    #endif
+    if tls, isLocal {
+      throw ValidationError(
+        "--tls cannot be combined with --path or --mach (TLS is only supported over TCP/UDP)."
+      )
+    }
+    if !tls, caCertFile != nil || insecure {
+      throw ValidationError("--cacert and --insecure require --tls.")
+    }
+    if UInt16(exactly: port) == nil {
+      throw ValidationError("'\(port)' is not a port number.")
+    }
   }
 
   private func initContext() async throws -> Context {
     var logger = Logger(label: "com.padl.ocacli")
 
-    #if canImport(Darwin)
-    guard hostname != nil || path != nil || machServiceName != nil, !help else {
-      usage()
-    }
-    #else
-    guard hostname != nil || path != nil, !help else {
-      usage()
-    }
-    #endif
-
-    if let logLevel {
-      guard let logLevel = Logger.Level(rawValue: logLevel) else {
-        usage()
-      }
-      logger.logLevel = logLevel
+    if let logLevel, let level = Logger.Level(rawValue: logLevel) {
+      logger.logLevel = level
     }
 
     var contextFlags: ContextFlags = [
@@ -344,16 +186,6 @@ final class OCACLI {
       pkcs12File: pkcs12File,
       pkcs12Password: pkcs12Password
     )
-    if tls, path != nil || _machServiceName != nil {
-      print(
-        "error: --tls cannot be combined with --path or --mach (TLS is only supported over TCP/UDP)"
-      )
-      throw Ocp1Error.status(.parameterError)
-    }
-    if !tls, caCertFile != nil || insecure {
-      print("error: --cacert / --insecure require --tls")
-      throw Ocp1Error.status(.parameterError)
-    }
     let revocation = try Self._resolveRevocationOptions(
       tls: tls,
       crlFile: crlFile,
@@ -544,123 +376,25 @@ final class OCACLI {
     return Ocp1TLSRevocationOptions(flags: flags, crls: crlFile.map { .crlFile($0) })
   }
 
-  private func executeCommand(context: Context, tokens: [String]) async throws {
-    guard tokens.count > 0 else { return }
-    let command = try await commands.command(
-      from: tokens,
-      context: context
-    )
-    if await context.connection.isConnected == false && command
-      .isUsableWhenDisconnected == false
-    {
-      throw Ocp1Error.notConnected
-    }
-    try await command.execute(with: context)
-  }
-
-  /// The prompt, the line being typed, and a bracket under the cursor.
-  private static let style = Style.attributes(
-    prompt: TextAttributes(.green, bold: true),
-    input: TextAttributes(.blue),
-    matchingBracket: TextAttributes(.red, bold: true)
-  )
-
-  private func prepareLineReader() async {
-    await lineReader.setStyle(Self.style)
-    await lineReader.setMaximumLineLength(200)
-    await lineReader.setCompletionHandler { [commands, weak self] line, cursor in
-      guard let self, let context else { return [] }
-      return await commands.getCompletions(from: line, cursor: cursor, context: context)
-    }
-  }
-
-  /// Reads and executes commands until the user exits. Completions and commands are awaited on
-  /// the same task as the reader, so a command can take as long as it likes without a thread
-  /// being parked on its behalf.
-  private func replLoop() async {
-    await prepareLineReader()
-
-    while true {
-      let line: String
-      do {
-        line = try await lineReader.readLine(prompt: "\(context.currentPathString)> ")
-      } catch {
-        // Ctrl-C or end of input
-        return
-      }
-
-      let tokens = commands.tokenizeCommand(line)
-      guard !tokens.isEmpty else { continue }
-
-      do {
-        try await executeCommand(context: context, tokens: tokens)
-      } catch {
-        context.print(error)
-      }
-    }
-  }
-
-  private var isBatchMode: Bool {
-    !commandsToExecute.isEmpty
-  }
-
-  private func monitorConnectionState() {
-    guard !context.contextFlags.contains(.automaticReconnect) else { return }
-    let context = context!
-    Task {
-      for try await connectionState in await context.connection.connectionState {
-        if connectionState == .connectionTimedOut ||
-          connectionState == .connectionFailed
-        {
-          Self.resetTerminal()
-          context.print(Ocp1Error.notConnected)
-          exit(2)
-        }
-      }
-    }
-  }
-
-  private static func resetTerminal() {
-    var term = savedTermios
-    tcsetattr(STDIN_FILENO, TCSADRAIN, &term)
-  }
-
-  private func batchLoop(_ commandsToExecute: [String]) async {
-    for commandToExecute in commandsToExecute {
-      let tokens = commands.tokenizeCommand(commandToExecute)
-      guard !tokens.isEmpty else { continue }
-
-      do {
-        try await executeCommand(context: context, tokens: tokens)
-      } catch {
-        context.print(error)
-        break
-      }
-    }
-  }
-
-  func run() async {
+  func run() async throws {
     LoggingSystem.bootstrap { StreamLogHandler.standardError(label: $0) }
-    _ = Self.savedTermios
 
     signal(SIGPIPE, SIG_IGN)
 
+    let context: Context
     do {
       context = try await initContext()
     } catch {
       print(error)
-      exit(2)
+      throw ExitCode(2)
     }
-    monitorConnectionState()
 
-    if isBatchMode {
-      await batchLoop(commandsToExecute)
+    let session = Session(context: context)
+    if commandsToExecute.isEmpty {
+      await session.runInteractively()
     } else {
-      // commands may be interrupted from the keyboard only when there is a keyboard to read
-      context.lineReader = lineReader
-      await replLoop()
+      await session.run(commandsToExecute)
     }
-
-    try? await Exit().execute(with: context)
+    await session.finish()
   }
 }
