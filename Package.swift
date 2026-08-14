@@ -15,6 +15,7 @@ let package = Package(
     ),
   ],
   dependencies: [
+    .package(url: "https://github.com/PADL/AsyncLineReader", branch: "main"),
     .package(url: "https://github.com/PADL/SwiftOCA", branch: "main"),
     .package(url: "https://github.com/PADL/OcaFirmwareImageContainer", branch: "main"),
     .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
@@ -22,12 +23,12 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.0.0"),
     .package(url: "https://github.com/apple/swift-crypto", from: "3.10.0"),
-    .package(path: "../AsyncLineReader"),
   ],
   targets: [
     .executableTarget(
       name: "ocacli",
       dependencies: [
+        "AsyncLineReader",
         "SwiftOCA",
         .product(name: "SwiftOCASecure", package: "SwiftOCA"),
         "OcaFirmwareImageContainer",
@@ -36,7 +37,6 @@ let package = Package(
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Crypto", package: "swift-crypto"),
-        "AsyncLineReader",
       ]
     ),
   ],
