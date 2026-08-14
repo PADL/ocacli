@@ -77,8 +77,9 @@ final class Session {
     }
   }
 
-  /// Executes the commands given on the command line, stopping at the first that fails.
-  func run(_ commandsToExecute: [String]) async {
+  /// Executes the commands given on the command line, stopping at the first that fails. Returns
+  /// whether they all succeeded, so that the exit status can say so.
+  func run(_ commandsToExecute: [String]) async -> Bool {
     for commandToExecute in commandsToExecute {
       let tokens = commands.tokenizeCommand(commandToExecute)
       guard !tokens.isEmpty else { continue }
@@ -87,13 +88,15 @@ final class Session {
         try await executeCommand(tokens: tokens)
       } catch {
         context.print(error)
-        return
+        return false
       }
     }
+
+    return true
   }
 
   func finish() async {
-    try? await Exit().execute(with: context)
+    await context.finish()
   }
 
   private func prepareLineReader() async {

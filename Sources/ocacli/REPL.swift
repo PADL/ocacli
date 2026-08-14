@@ -493,17 +493,24 @@ extension CaseIterable {
 /// https://stackoverflow.com/questions/26501276/converting-hex-string-to-nsdata-in-swift
 extension Data {
   init?(hex: String) {
-    guard hex.count.isMultiple(of: 2) else {
+    guard !hex.isEmpty, hex.count.isMultiple(of: 2) else {
       return nil
     }
 
-    let chars = hex.map { $0 }
-    let bytes = stride(from: 0, to: chars.count, by: 2)
-      .map { String(chars[$0]) + String(chars[$0 + 1]) }
-      .compactMap { UInt8($0, radix: 16) }
+    var bytes = [UInt8]()
+    bytes.reserveCapacity(hex.count / 2)
+    var index = hex.startIndex
 
-    guard bytes.count > 0 else { return nil }
-    guard hex.count / bytes.count == 2 else { return nil }
+    while index < hex.endIndex {
+      let next = hex.index(index, offsetBy: 2)
+      let digits = hex[index..<next]
+      guard digits.allSatisfy(\.isHexDigit), let byte = UInt8(digits, radix: 16) else {
+        return nil
+      }
+      bytes.append(byte)
+      index = next
+    }
+
     self.init(bytes)
   }
 
