@@ -1,7 +1,10 @@
+\.DS_Store
 .build/
 .swiftpm/
+Package.resolved
 Packages/
 *.xcodeproj
+*.swp
 
 # profiling output
 heaptrack.*
