@@ -577,15 +577,14 @@ final class Context: @unchecked Sendable {
       absolute = true
     }
 
-    var normalized = OcaNamePath()
-    for component in components {
+    let normalized = components.reduce(into: OcaNamePath()) { path, component in
       switch component {
       case ".":
         break
       case "..":
-        if !normalized.isEmpty { normalized.removeLast() }
+        if !path.isEmpty { path.removeLast() }
       default:
-        normalized.append(component)
+        path.append(component)
       }
     }
 
@@ -657,12 +656,10 @@ final class Context: @unchecked Sendable {
     } else if let found = await _findActionObjects(in: block, matching: partialRole) {
       completions = found
     } else if let actionObjects = try? await block.resolveActionObjects() {
-      var roles = [String]()
-      for actionObject in actionObjects {
-        guard let role = try? await actionObject.getRole() else { continue }
-        roles.append(role + (actionObject is OcaBlock ? String(ocaPathSeparator) : ""))
+      completions = await actionObjects.asyncCompactMap { actionObject in
+        guard let role = try? await actionObject.getRole() else { return nil }
+        return role + (actionObject is OcaBlock ? String(ocaPathSeparator) : "")
       }
-      completions = roles
     }
 
     guard var completions else { return nil }
@@ -713,26 +710,25 @@ final class Context: @unchecked Sendable {
     // matched, so let the caller enumerate rather than report a block as having no children.
     guard !searchResults.isEmpty else { return nil }
 
-    var completions = [String]()
-
     for searchResult in searchResults {
-      guard let role = searchResult.role else { continue }
-
-      if let oNo = searchResult.oNo, let classIdentification = searchResult.classIdentification,
-         let object = try? await connection.resolve(object: OcaObjectIdentification(
-           oNo: oNo,
-           classIdentification: classIdentification
-         ))
-      {
-        object.cacheRole(role)
+      guard let role = searchResult.role, let oNo = searchResult.oNo,
+            let classIdentification = searchResult.classIdentification,
+            let object = try? await connection.resolve(object: OcaObjectIdentification(
+              oNo: oNo,
+              classIdentification: classIdentification
+            ))
+      else {
+        continue
       }
-
-      let isBlock = searchResult.classIdentification?
-        .isSubclass(of: OcaBlock.classIdentification) ?? false
-      completions.append(role + (isBlock ? String(ocaPathSeparator) : ""))
+      object.cacheRole(role)
     }
 
-    return completions
+    return searchResults.compactMap { searchResult in
+      guard let role = searchResult.role else { return nil }
+      let isBlock = searchResult.classIdentification?
+        .isSubclass(of: OcaBlock.classIdentification) ?? false
+      return role + (isBlock ? String(ocaPathSeparator) : "")
+    }
   }
 
   /// Returns completions for a partially typed role path, e.g. `/Foo/Ba`. The returned

@@ -88,22 +88,17 @@ func replTokenize(_ buffer: String) -> (tokens: [REPLToken], endsWithSeparator: 
 /// quoted so that the path can be extended by typing further components.
 func replEscape(_ value: String, quoted: Bool = false) -> String {
   if quoted {
-    var escaped = "\""
-    for character in value {
-      if character == "\"" || character == "\\" { escaped.append("\\") }
-      escaped.append(character)
-    }
-    if !value.hasSuffix(String(ocaPathSeparator)) { escaped.append("\"") }
-    return escaped
+    let escaped = value.map { character in
+      character == "\"" || character == "\\" ? "\\\(character)" : String(character)
+    }.joined()
+    let closing = value.hasSuffix(String(ocaPathSeparator)) ? "" : "\""
+    return "\"" + escaped + closing
   } else {
-    var escaped = ""
-    for character in value {
-      if character.isWhitespace || character == "\"" || character == "\\" {
-        escaped.append("\\")
-      }
-      escaped.append(character)
-    }
-    return escaped
+    return value.map { character in
+      character.isWhitespace || character == "\"" || character == "\\"
+        ? "\\\(character)"
+        : String(character)
+    }.joined()
   }
 }
 
