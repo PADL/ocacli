@@ -63,19 +63,11 @@ extension OcaBlock {
   /// been resolved, and take that for all of them.
   var completeCachedActionObjectRoles: [(OcaRoot, OcaString)]? {
     get async throws {
-      guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
+      guard let actionObjects = try? actionObjects.asOptionalResult().get(),
+            let roles = try? await cachedActionObjectRoles,
+            roles.count == actionObjects.count
+      else {
         return nil
-      }
-
-      var roles = [(OcaRoot, OcaString)]()
-
-      for actionObject in actionObjects {
-        guard let actionObject = connectionDelegate?.resolve(cachedObject: actionObject.oNo),
-              let role = try? actionObject.role.asOptionalResult().get()
-        else {
-          return nil
-        }
-        roles.append((actionObject, role))
       }
 
       return roles
@@ -88,18 +80,15 @@ extension OcaBlock {
         throw Ocp1Error.noInitialValue
       }
 
-      var roles = [(OcaRoot, OcaString)]()
-
-      for actionObject in actionObjects {
-        if let actionObject = connectionDelegate?
-          .resolve(cachedObject: actionObject.oNo),
-          let role = try? actionObject.role.asOptionalResult().get()
-        {
-          roles.append((actionObject, role))
+      return actionObjects.compactMap { actionObject in
+        guard let object = connectionDelegate?.resolve(cachedObject: actionObject.oNo),
+              let role = try? object.role.asOptionalResult().get()
+        else {
+          return nil
         }
-      }
 
-      return roles
+        return (object, role)
+      }
     }
   }
 }
