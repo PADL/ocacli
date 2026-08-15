@@ -130,6 +130,7 @@ struct OCACLI: AsyncParsableCommand {
     var contextFlags: ContextFlags = [
       .enableRolePathLookupCache,
       .supportsFindActionObjectsByPath,
+      .supportsFindActionObjectsByRole,
     ]
     contextFlags = flags.reduce(contextFlags) { $0.union($1) }
 
