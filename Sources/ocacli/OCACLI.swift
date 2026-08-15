@@ -105,16 +105,21 @@ struct OCACLI: AsyncParsableCommand {
       throw ValidationError("'\(batchSize)' is not a batch size.")
     }
 
-    for (value, option) in [
-      (connectionTimeout, "--connection-timeout"),
-      (responseTimeout, "--response-timeout"),
-      (batchThreshold, "--batch-threshold"),
+    // a duration is measured in attoseconds, so one made from a large enough number of seconds
+    // traps rather than being merely absurd
+    for (value, option, limit) in [
+      (connectionTimeout, "--connection-timeout", Self.longestTimeoutInSeconds),
+      (responseTimeout, "--response-timeout", Self.longestTimeoutInSeconds),
+      (batchThreshold, "--batch-threshold", Self.longestTimeoutInSeconds * 1000),
     ] {
-      if let value, value < 0 {
-        throw ValidationError("\(option) cannot be negative.")
+      if let value, !(0...limit).contains(value) {
+        throw ValidationError("\(option) must be between 0 and \(limit).")
       }
     }
   }
+
+  /// a day, which is longer than any of these could sensibly be
+  private static let longestTimeoutInSeconds = 86400
 
   private func initContext() async throws -> Context {
     var logger = Logger(label: "com.padl.ocacli")

@@ -265,17 +265,22 @@ final class REPLCommandRegistry: @unchecked Sendable {
       case let value as REPLCommandArgument<Bool>:
         value.wrappedValue = NSString(string: argumentValue).boolValue
       case let value as REPLCommandArgument<Int>:
-        value.wrappedValue = Int(argumentValue)
+        guard let number = Int(argumentValue) else { throw Ocp1Error.status(.badFormat) }
+        value.wrappedValue = number
       case let value as REPLCommandArgument<UInt>:
-        value.wrappedValue = UInt(argumentValue)
+        guard let number = UInt(argumentValue) else { throw Ocp1Error.status(.badFormat) }
+        value.wrappedValue = number
       case let value as REPLCommandArgument<Float>:
-        value.wrappedValue = Float(argumentValue)
+        guard let number = Float(argumentValue) else { throw Ocp1Error.status(.badFormat) }
+        value.wrappedValue = number
       case let value as REPLCommandArgument<Double>:
-        value.wrappedValue = Double(argumentValue)
+        guard let number = Double(argumentValue) else { throw Ocp1Error.status(.badFormat) }
+        value.wrappedValue = number
       case let value as REPLCommandArgument<OcaRoot>:
         value.wrappedValue = try await context.resolve(rolePath: argumentValue)
       case let value as REPLCommandArgument<URL>:
-        value.wrappedValue = URL(string: argumentValue)
+        guard let url = URL(string: argumentValue) else { throw Ocp1Error.status(.badFormat) }
+        value.wrappedValue = url
       case let value as REPLCommandArgument<Data>:
         value.wrappedValue = try Data(fromHexEncodedString: argumentValue)
       case let value as REPLCommandArgument<[UInt8]>:
