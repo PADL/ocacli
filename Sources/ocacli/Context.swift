@@ -33,6 +33,8 @@ enum ContextFlagsNames: Int, CaseIterable {
   case refreshDeviceTreeOnConnection = 4
   case automaticReconnect = 5
   case enableTracing = 6
+  /// connected device supports findActionObjectsByRole() method
+  case supportsFindActionObjectsByRole = 7
 
   init?(fromString string: String) {
     for flag in Self.allCases {
@@ -76,6 +78,10 @@ struct ContextFlags: OptionSet, ExpressibleByArgument {
   )
   static let automaticReconnect = ContextFlags(ContextFlagsNames.automaticReconnect)
   static let enableTracing = ContextFlags(ContextFlagsNames.enableTracing)
+  static let supportsFindActionObjectsByRole = ContextFlags(
+    ContextFlagsNames
+      .supportsFindActionObjectsByRole
+  )
 
   init?(fromString string: String) {
     guard let flagName = ContextFlagsNames(fromString: string) else { return nil }
@@ -534,8 +540,8 @@ final class Context: @unchecked Sendable {
         )
         object = try? await connection.resolve(object: objectIdentificationAndRole.0)
 
-        /// sparseRolePathCache is used to cache results of FindActionObjectsByPath()
-        /// where we haven't necessarily traversed the complete object hierarchy
+        // sparseRolePathCache is used to cache results of FindActionObjectsByPath()
+        // where we haven't necessarily traversed the complete object hierarchy
         if let object {
           object.cacheRole(objectIdentificationAndRole.1)
           sparseRolePathCache[path] = object
@@ -633,26 +639,33 @@ final class Context: @unchecked Sendable {
   }
 
   /// Returns the roles of the action objects of `block`, suffixed with a path separator if the
-  /// action object is itself a block. The device is only queried if the block's action objects
-  /// have not already been cached.
+  /// action object is itself a block.
+  ///
+  /// Where the block's action objects are cached the answer costs nothing. Where they are not,
+  /// the device is asked for the roles beginning with what has been typed, which is a single
+  /// call; only if it cannot answer that are all of the block's action objects enumerated, which
+  /// costs a call for the list and another for each role.
   private func _resolveObjectCompletions(
     _ block: OcaBlock,
-    path: OcaNamePath?
+    path: OcaNamePath?,
+    matching partialRole: String
   ) async -> [String]? {
-    var roles: [(OcaRoot, OcaString)]? = try? await block.cachedActionObjectRoles
+    var completions: [String]?
 
-    if roles == nil || roles!.isEmpty, let actionObjects = try? await block.resolveActionObjects() {
-      var resolvedRoles = [(OcaRoot, OcaString)]()
+    if let roles = try? await block.completeCachedActionObjectRoles, !roles.isEmpty {
+      completions = roles.map { $0.1 + ($0.0 is OcaBlock ? String(ocaPathSeparator) : "") }
+    } else if let found = await _findActionObjects(in: block, matching: partialRole) {
+      completions = found
+    } else if let actionObjects = try? await block.resolveActionObjects() {
+      var roles = [String]()
       for actionObject in actionObjects {
         guard let role = try? await actionObject.getRole() else { continue }
-        resolvedRoles.append((actionObject, role))
+        roles.append(role + (actionObject is OcaBlock ? String(ocaPathSeparator) : ""))
       }
-      roles = resolvedRoles
+      completions = roles
     }
 
-    guard let roles else { return nil }
-
-    var completions = roles.map { $0.1 + ($0.0 is OcaBlock ? String(ocaPathSeparator) : "") }
+    guard var completions else { return nil }
 
     // the sparse role path cache may know of descendants of `block` that we did not
     // enumerate, because they were found with FindActionObjectsByPath()
@@ -665,6 +678,61 @@ final class Context: @unchecked Sendable {
     }
 
     return Array(Swift.Set(completions)).sorted()
+  }
+
+  /// Asks the device for the roles of `block`'s action objects that begin with what has been
+  /// typed, which is how completion works before any of the hierarchy has been resolved. Returns
+  /// nil if the device cannot answer, so that the caller falls back to enumerating.
+  ///
+  /// Each role that comes back is remembered on the object it belongs to, so that asking for it
+  /// again is free. Nothing else is cached: a search returns the objects that matched, which
+  /// says nothing about the ones that did not, and recording that as the block's action objects
+  /// would be recording a part as the whole.
+  private func _findActionObjects(
+    in block: OcaBlock,
+    matching partialRole: String
+  ) async -> [String]? {
+    guard contextFlags.contains(.supportsFindActionObjectsByRole) else { return nil }
+
+    let searchResults: [OcaObjectSearchResult]
+
+    do {
+      searchResults = try await block.find(
+        actionObjectsByRole: partialRole,
+        nameComparisonType: .substring,
+        resultFlags: [.oNo, .role, .classIdentification]
+      )
+    } catch Ocp1Error.status(.notImplemented) {
+      contextFlags.remove(.supportsFindActionObjectsByRole)
+      return nil
+    } catch {
+      return nil
+    }
+
+    // A device that does not search the way this expects looks the same as one where nothing
+    // matched, so let the caller enumerate rather than report a block as having no children.
+    guard !searchResults.isEmpty else { return nil }
+
+    var completions = [String]()
+
+    for searchResult in searchResults {
+      guard let role = searchResult.role else { continue }
+
+      if let oNo = searchResult.oNo, let classIdentification = searchResult.classIdentification,
+         let object = try? await connection.resolve(object: OcaObjectIdentification(
+           oNo: oNo,
+           classIdentification: classIdentification
+         ))
+      {
+        object.cacheRole(role)
+      }
+
+      let isBlock = searchResult.classIdentification?
+        .isSubclass(of: OcaBlock.classIdentification) ?? false
+      completions.append(role + (isBlock ? String(ocaPathSeparator) : ""))
+    }
+
+    return completions
   }
 
   /// Returns completions for a partially typed role path, e.g. `/Foo/Ba`. The returned
@@ -700,8 +768,11 @@ final class Context: @unchecked Sendable {
       try? await block.getRolePath(flags: contextFlags.cachedPropertyResolutionFlags)
     }
 
-    guard let completions = await _resolveObjectCompletions(block, path: containerPath)
-    else { return nil }
+    guard let completions = await _resolveObjectCompletions(
+      block,
+      path: containerPath,
+      matching: partialRole
+    ) else { return nil }
 
     return completions.filter { $0.hasPrefix(partialRole) }.map { container + $0 }
   }
@@ -803,6 +874,8 @@ struct DumpSparseRolePathCache: REPLCommand {
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    nil
+  }
 }
 #endif

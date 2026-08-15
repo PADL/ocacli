@@ -56,6 +56,32 @@ private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
 
 @OcaConnection
 extension OcaBlock {
+  /// The roles of every action object, or nil if any of them is missing from the cache.
+  ///
+  /// Unlike `cachedActionObjectRoles` this will not answer with a part of the block: a caller
+  /// listing what is in a block would otherwise be told about whichever objects happen to have
+  /// been resolved, and take that for all of them.
+  var completeCachedActionObjectRoles: [(OcaRoot, OcaString)]? {
+    get async throws {
+      guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
+        return nil
+      }
+
+      var roles = [(OcaRoot, OcaString)]()
+
+      for actionObject in actionObjects {
+        guard let actionObject = connectionDelegate?.resolve(cachedObject: actionObject.oNo),
+              let role = try? actionObject.role.asOptionalResult().get()
+        else {
+          return nil
+        }
+        roles.append((actionObject, role))
+      }
+
+      return roles
+    }
+  }
+
   var cachedActionObjectRoles: [(OcaRoot, OcaString)] {
     get async throws {
       guard let actionObjects = try? actionObjects.asOptionalResult().get() else {
@@ -132,11 +158,10 @@ extension OcaRoot {
     context: Context,
     options: JSONSerialization.WritingOptions
   ) async throws -> Data {
-    let jsonResultData = try await JSONSerialization.data(
+    try await JSONSerialization.data(
       withJSONObject: getDumpJsonObject(context: context),
       options: options
     )
-    return jsonResultData
   }
 }
 
