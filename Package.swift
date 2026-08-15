@@ -37,7 +37,8 @@ let package = Package(
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Crypto", package: "swift-crypto"),
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]
     ),
   ],
   swiftLanguageVersions: [.v5]
