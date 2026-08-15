@@ -502,19 +502,15 @@ extension Data {
       return nil
     }
 
-    var bytes = [UInt8]()
-    bytes.reserveCapacity(hex.count / 2)
-    var index = hex.startIndex
-
-    while index < hex.endIndex {
-      let next = hex.index(index, offsetBy: 2)
-      let digits = hex[index..<next]
-      guard digits.allSatisfy(\.isHexDigit), let byte = UInt8(digits, radix: 16) else {
-        return nil
-      }
-      bytes.append(byte)
-      index = next
+    let characters = Array(hex)
+    let bytes = stride(from: 0, to: characters.count, by: 2).compactMap { index -> UInt8? in
+      let digits = String(characters[index..<index + 2])
+      guard digits.allSatisfy(\.isHexDigit) else { return nil }
+      return UInt8(digits, radix: 16)
     }
+
+    // a pair that did not convert leaves the result shorter than the string it came from
+    guard bytes.count == characters.count / 2 else { return nil }
 
     self.init(bytes)
   }
