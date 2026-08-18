@@ -147,12 +147,49 @@ extension OcaRoot {
     context: Context,
     options: JSONSerialization.WritingOptions
   ) async throws -> Data {
-    try await JSONSerialization.data(
-      withJSONObject: getDumpJsonObject(context: context),
-      options: options
-    )
+    let jsonObject = await getDumpJsonObject(context: context)
+    #if canImport(Darwin)
+    // an invalid value aborts inside Darwin's NSJSONSerialization rather than
+    // throwing as corelibs does, so refuse it here — naming the offenders,
+    // which the ObjC exception would not have done either
+    guard JSONSerialization.isValidJSONObject(jsonObject) else {
+      throw JsonRepresentationError(offendingPaths: invalidJsonPaths(in: jsonObject))
+    }
+    #endif
+    return try JSONSerialization.data(withJSONObject: jsonObject, options: options)
   }
 }
+
+#if canImport(Darwin)
+/// The key paths of values `JSONSerialization` cannot represent: non-finite
+/// numbers, or types outside the JSON model.
+private func invalidJsonPaths(in value: Any, at path: String = "") -> [String] {
+  switch value {
+  case let dictionary as [String: Any]:
+    dictionary.flatMap { invalidJsonPaths(in: $0.value, at: "\(path)/\($0.key)") }
+  case let array as [Any]:
+    array.enumerated().flatMap { invalidJsonPaths(in: $0.element, at: "\(path)[\($0.offset)]") }
+  case let number as NSNumber:
+    number.doubleValue.isFinite ? [] : [path]
+  case is String, is NSNull:
+    []
+  default:
+    [path]
+  }
+}
+
+private struct JsonRepresentationError: Error, CustomStringConvertible {
+  let offendingPaths: [String]
+
+  var description: String {
+    if offendingPaths.isEmpty {
+      "object has one or more values that cannot be represented in JSON"
+    } else {
+      "values cannot be represented in JSON at: " + offendingPaths.joined(separator: ", ")
+    }
+  }
+}
+#endif
 
 let ocaPathSeparator: Character = "/"
 
