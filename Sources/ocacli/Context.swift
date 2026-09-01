@@ -306,6 +306,10 @@ enum DeviceEndpointInfo {
     return connection
   }
 
+  // SwiftOCASecure has a TLS transport where the platform brings one: Network.framework on
+  // Apple's, OpenSSL and io_uring on Linux. Windows has neither, so there is nothing here to
+  // connect with, and --tls is refused before it gets this far.
+  #if canImport(Darwin) || os(Linux)
   private func getTLSConnection(
     credential: Ocp1TLSCredential,
     trustRoots: Ocp1TLSTrustRoots?,
@@ -351,6 +355,25 @@ enum DeviceEndpointInfo {
     try await connection.connect()
     return connection
   }
+  #else
+  private func getTLSConnection(
+    credential: Ocp1TLSCredential,
+    trustRoots: Ocp1TLSTrustRoots?,
+    revocation: Ocp1TLSRevocationOptions,
+    options: Ocp1ConnectionOptions
+  ) async throws -> Ocp1Connection {
+    throw Ocp1Error.notImplemented
+  }
+
+  private func getDTLSConnection(
+    credential: Ocp1TLSCredential,
+    trustRoots: Ocp1TLSTrustRoots?,
+    revocation: Ocp1TLSRevocationOptions,
+    options: Ocp1ConnectionOptions
+  ) async throws -> Ocp1Connection {
+    throw Ocp1Error.notImplemented
+  }
+  #endif
 
   private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
     guard let path else {

@@ -97,6 +97,14 @@ struct OCACLI: AsyncParsableCommand {
       )
     }
 
+    #if !(canImport(Darwin) || os(Linux))
+    // SwiftOCASecure has a TLS transport only where the platform brings one: Network.framework
+    // on Apple's, OpenSSL and io_uring on Linux
+    if tlsOptions.tls {
+      throw ValidationError("--tls is not supported on this platform.")
+    }
+    #endif
+
     if UInt16(exactly: port) == nil {
       throw ValidationError("'\(port)' is not a port number.")
     }
@@ -187,7 +195,11 @@ struct OCACLI: AsyncParsableCommand {
   func run() async throws {
     LoggingSystem.bootstrap { StreamLogHandler.standardError(label: $0) }
 
+    #if !canImport(WinSDK)
+    // Windows has no SIGPIPE: a write to a socket nobody is reading fails, rather than killing
+    // the process
     signal(SIGPIPE, SIG_IGN)
+    #endif
 
     let context: Context
     do {

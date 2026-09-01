@@ -25,11 +25,9 @@ final class Session {
   private let commands = REPLCommandRegistry.shared
   private let lineReader = AsyncLineReader.LineReader()
 
-  private static var savedTermios: termios = {
-    var term = termios()
-    tcgetattr(STDIN_FILENO, &term)
-    return term
-  }()
+  /// The terminal as it was before the line editor touched it, so that it can be put back if the
+  /// session ends somewhere the editor's own tidying up does not run.
+  private static let savedTerminalSettings = Terminal.standard.settings
 
   /// The prompt, the line being typed, and a bracket under the cursor.
   private static let style = Style.attributes(
@@ -40,7 +38,7 @@ final class Session {
 
   init(context: Context) {
     self.context = context
-    _ = Self.savedTermios
+    _ = Self.savedTerminalSettings
     // a command may be interrupted from the keyboard whenever there is one; the reader does
     // nothing when standard input is not a terminal
     context.lineReader = lineReader
@@ -162,7 +160,7 @@ final class Session {
   }
 
   private static func resetTerminal() {
-    var term = savedTermios
-    tcsetattr(STDIN_FILENO, TCSADRAIN, &term)
+    guard let savedTerminalSettings else { return }
+    Terminal.standard.restore(savedTerminalSettings)
   }
 }

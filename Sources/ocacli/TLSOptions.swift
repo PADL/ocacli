@@ -18,6 +18,39 @@ import ArgumentParser
 import Foundation
 import SwiftOCA
 import SwiftOCASecure
+#if canImport(WinSDK)
+import ucrt
+import WinSDK
+#endif
+
+#if canImport(WinSDK)
+/// Reads a password from the console with the echo turned off; ucrt has no `getpass`. Returns
+/// nil when standard input is not a console, where the password would otherwise be echoed.
+private func promptForPassword(_ prompt: String) -> String? {
+  var mode: DWORD = 0
+  guard let console = GetStdHandle(STD_INPUT_HANDLE), console != INVALID_HANDLE_VALUE,
+        GetConsoleMode(console, &mode),
+        SetConsoleMode(console, mode & ~DWORD(ENABLE_ECHO_INPUT))
+  else { return nil }
+  defer {
+    SetConsoleMode(console, mode)
+    // the Return that ended the password was not echoed either
+    print("")
+  }
+
+  fputs(prompt, stdout)
+  fflush(stdout)
+  return readLine(strippingNewline: true)
+}
+#else
+private func promptForPassword(_ prompt: String) -> String? {
+  // without a terminal getpass would either block or echo, so let the library try the bundle
+  // without a password and fail cleanly
+  guard isatty(STDIN_FILENO) != 0 else { return nil }
+  guard let prompted = getpass(prompt) else { return nil }
+  return String(cString: prompted)
+}
+#endif
 
 /// Everything to do with TLS: whether to use it, which credential to present, and how much of
 /// the server's certificate chain to believe.
@@ -172,11 +205,7 @@ struct TLSOptions: ParsableArguments {
     if let environment = ProcessInfo.processInfo.environment["OCACLI_PKCS12_PASSWORD"] {
       return environment
     }
-    // without a terminal getpass would either block or echo, so let the library try the bundle
-    // without a password and fail cleanly
-    guard isatty(STDIN_FILENO) != 0 else { return nil }
-    guard let prompted = getpass("PKCS#12 password: ") else { return nil }
-    let password = String(cString: prompted)
+    guard let password = promptForPassword("PKCS#12 password: ") else { return nil }
     return password.isEmpty ? nil : password
   }
 }
