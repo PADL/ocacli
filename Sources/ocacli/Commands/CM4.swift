@@ -19,16 +19,6 @@ import Foundation
 
 // AES70-2024 CM4 (OcaMediaTransportApplication / OcaMediaTransportSessionAgent) commands.
 
-private func hex(_ blob: OcaBlob) -> String {
-  blob.map { String($0, radix: 16).leftPadded(2) }.joined()
-}
-
-private extension String {
-  func leftPadded(_ width: Int) -> String {
-    count >= width ? self : String(repeating: "0", count: width - count) + self
-  }
-}
-
 private extension OcaMediaStreamMode {
   var summary: String {
     "\(frameFormat) \(encodingType) \(Int(samplingRate)) Hz x\(channelCount)"
@@ -36,34 +26,62 @@ private extension OcaMediaStreamMode {
 }
 
 private extension OcaMediaStreamEndpoint {
-  func summary(status: OcaMediaStreamEndpointStatus?) -> String {
+  func summary(status: OcaMediaStreamEndpointStatus?, adaptation: OcaAdaptationIdentifier) -> String {
     let state = status.map { "\($0.state)" } ?? "unknown"
     var line = "\(idInternal)\t\(direction)\t\(state)\t\"\(userLabel)\"\t\(currentStreamMode.summary)"
-    if let external = try? idExternal.decode(MilanMediaStreamEndpointIDExternal.self),
-       idExternal.count == 10
-    {
-      line += "\tmilan \(String(external.entityID, radix: 16)):\(external.streamIndex)"
-    } else if let text = String(bytes: idExternal, encoding: .utf8),
-              !text.isEmpty, text.allSatisfy({ !$0.isNewline && ($0.isLetter || $0.isNumber || $0.isPunctuation || $0.isSymbol || $0 == " ") })
-    {
-      line += "\text \"\(text)\""
-    } else if !idExternal.isEmpty {
-      line += "\text \(hex(idExternal))"
+    if !idExternal.isEmpty {
+      line += "\text \(OcaRemoteEndpointID.description(of: idExternal, adaptation: adaptation))"
     }
     return line
   }
 }
 
-/// Parses "<entityID>:<streamIndex>" (entity ID in hex) into a Milan external endpoint ID.
-private func milanEndpointID(_ string: String) throws -> MilanMediaStreamEndpointIDExternal {
-  let parts = string.split(separator: ":", maxSplits: 1)
-  guard parts.count == 2,
-        let entityID = UInt64(parts[0].replacingOccurrences(of: "0x", with: ""), radix: 16),
-        let streamIndex = UInt16(parts[1])
-  else {
-    throw Ocp1Error.status(.parameterError)
+private extension OcaMediaTransportApplication {
+  /// The input endpoint named by label or ID.
+  func inputEndpoint(_ name: String) async throws -> OcaMediaStreamEndpoint {
+    let endpoints = try await $endpoints._getValue(self, flags: [])
+    guard let endpoint = endpoints.first(where: {
+      $0.direction == .input && ($0.userLabel == name || String($0.idInternal) == name)
+    }) else {
+      throw Ocp1Error.status(.parameterOutOfRange)
+    }
+    return endpoint
   }
-  return MilanMediaStreamEndpointIDExternal(entityID: entityID, streamIndex: streamIndex)
+
+  /// The session agent's session and connection for a local endpoint.
+  func sessionConnection(
+    for endpoint: OcaMediaStreamEndpoint,
+    with context: Context
+  ) async throws -> (OcaMediaTransportSessionAgent, OcaMediaTransportSession, OcaMediaTransportSessionConnection) {
+    let agentONos = try await $transportSessionControlAgentONos._getValue(self, flags: [])
+    guard let agentONo = agentONos.first else { throw Ocp1Error.status(.invalidRequest) }
+    guard let agent = try await context.connection.resolve(objectOfUnknownClass: agentONo)
+      as? OcaMediaTransportSessionAgent
+    else {
+      throw Ocp1Error.objectClassMismatch
+    }
+    let sessions = try await agent.$sessions._getValue(agent, flags: [])
+    guard let session = sessions.first(where: {
+      $0.connections.contains { $0.localEndpointID == endpoint.idInternal }
+    }), let connection = session.connections.first(where: { $0.localEndpointID == endpoint.idInternal })
+    else {
+      throw Ocp1Error.status(.invalidRequest)
+    }
+    return (agent, session, connection)
+  }
+}
+
+private extension DanteOcaMediaTransportApplication {
+  /// The channel endpoint carrying the same external ID as a stream endpoint.
+  func channelEndpointID(for endpoint: OcaMediaStreamEndpoint) async throws -> OcaID16 {
+    let channelEndpoints = try await $channelEndpoints._getValue(self, flags: [])
+    guard let id = channelEndpoints.first(where: {
+      $0.value.direction == .input && $0.value.idExternal == endpoint.idExternal
+    })?.key else {
+      throw Ocp1Error.status(.parameterOutOfRange)
+    }
+    return id
+  }
 }
 
 struct GetEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -86,14 +104,15 @@ struct GetEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComplet
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
     let statuses = try await application.$endpointStatuses._getValue(application, flags: [])
+    let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
     if let id {
       let endpoint = try await application.getEndpoint(OcaMediaStreamEndpointID(id))
-      context.print(endpoint.summary(status: statuses[endpoint.idInternal]))
+      context.print(endpoint.summary(status: statuses[endpoint.idInternal], adaptation: adaptation))
       context.print("\(endpoint)")
     } else {
       let endpoints = try await application.$endpoints._getValue(application, flags: [])
       for endpoint in endpoints {
-        context.print(endpoint.summary(status: statuses[endpoint.idInternal]))
+        context.print(endpoint.summary(status: statuses[endpoint.idInternal], adaptation: adaptation))
       }
     }
   }
@@ -145,6 +164,7 @@ struct GetSessions: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
   func execute(with context: Context) async throws {
     let agent = context.currentObject as! OcaMediaTransportSessionAgent
     let statuses = try await agent.$sessionStatuses._getValue(agent, flags: [])
+    let sessionType = try await agent.$sessionType._getValue(agent, flags: [])
     let sessions: [OcaMediaTransportSession] = if let id {
       [try await agent.getSession(OcaMediaTransportSessionID(id))]
     } else {
@@ -156,22 +176,15 @@ struct GetSessions: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
       line += "\tstreaming=\(session.streamingEnabled)"
       for connection in session.connections {
         line += "\tlocal=\(connection.localEndpointID)"
-        if let remote = try? connection.remoteEndpointID.decode(MilanMediaStreamEndpointIDExternal.self),
-           connection.remoteEndpointID.count == 10
-        {
-          line += remote == .unbound
-            ? "\tremote=unbound"
-            : "\tremote=\(String(remote.entityID, radix: 16)):\(remote.streamIndex)"
-        } else if !connection.remoteEndpointID.isEmpty {
-          line += "\tremote=\(hex(connection.remoteEndpointID))"
+        if !connection.remoteEndpointID.isEmpty {
+          let remote = OcaRemoteEndpointID.description(of: connection.remoteEndpointID, adaptation: sessionType)
+          line += "\tremote=\(remote.isEmpty ? "unbound" : remote)"
         }
       }
-      if let status, !status.adaptationData.isEmpty,
-         let milan = try? status.adaptationData.decode(MilanSessionStatusAdaptationData.self)
-      {
-        line += "\t\(milan.substate)"
-        if milan.srpFailureCode != 0 { line += " srp=\(milan.srpFailureCode)" }
-        if milan.msrpAccumulatedLatency != 0 { line += " latency=\(milan.msrpAccumulatedLatency)ns" }
+      if let status, let detail = OcaSessionStatusDescription.description(
+        of: status.adaptationData, sessionType: sessionType
+      ) {
+        line += "\t\(detail)"
       }
       context.print(line)
     }
@@ -182,7 +195,7 @@ struct GetSessions: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
 
 struct ConfigureConnection: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
   static let name = ["configure-connection", "bind"]
-  static let summary = "Bind a session to a talker: <session ID> <entityID>:<stream index>"
+  static let summary = "Configure a session's connection: <session ID> <remote endpoint ID>"
 
   static var supportedClasses: [OcaClassIdentification] {
     [OcaMediaTransportSessionAgent.classIdentification]
@@ -202,11 +215,12 @@ struct ConfigureConnection: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
     guard let connection = session.connections.first else {
       throw Ocp1Error.status(.invalidRequest)
     }
+    let sessionType = try await agent.$sessionType._getValue(agent, flags: [])
     try await agent.configureConnection(
       sessionID: session.idInternal,
       connectionID: connection.id,
       localEndpointID: connection.localEndpointID,
-      remoteEndpointID: try milanEndpointID(talker).blob
+      remoteEndpointID: try OcaRemoteEndpointID.blob(parsing: talker, adaptation: sessionType)
     )
   }
 
@@ -258,10 +272,12 @@ struct SetStreamingEnabled: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
-/// Binds an input endpoint, found by label or ID, through the application's session agent.
-struct PatchStream: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
-  static let name = ["patch-stream"]
-  static let summary = "Bind an input endpoint by label or ID: <endpoint> <entityID>:<stream index>"
+/// Connects an input endpoint, found by label or ID, to a remote endpoint: through the
+/// session agent for stream-based adaptations, through the channel endpoints for
+/// channel-based ones (AES70-23).
+struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["connect-endpoint"]
+  static let summary = "Connect an input endpoint to a remote: <endpoint label or ID> <remote endpoint ID>"
 
   static var supportedClasses: [OcaClassIdentification] {
     [OcaMediaTransportApplication.classIdentification]
@@ -271,40 +287,55 @@ struct PatchStream: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificC
   var endpoint: String!
 
   @REPLCommandArgument
-  var talker: String!
+  var remote: String!
 
   init() {}
 
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
-    let endpoints = try await application.$endpoints._getValue(application, flags: [])
-    guard let target = endpoints.first(where: {
-      $0.direction == .input && ($0.userLabel == endpoint || String($0.idInternal) == endpoint)
-    }) else {
-      throw Ocp1Error.status(.parameterOutOfRange)
+    let target = try await application.inputEndpoint(endpoint)
+    if let application = application as? DanteOcaMediaTransportApplication {
+      let id = try await application.channelEndpointID(for: target)
+      try await application.subscribe(channelEndpoint: id, to: remote)
+      context.print("subscribed channel endpoint \(id) \"\(target.userLabel)\" to \(remote!)")
+      return
     }
-    let agentONos = try await application.$transportSessionControlAgentONos
-      ._getValue(application, flags: [])
-    guard let agentONo = agentONos.first else { throw Ocp1Error.status(.invalidRequest) }
-    guard let agent = try await context.connection.resolve(objectOfUnknownClass: agentONo)
-      as? OcaMediaTransportSessionAgent
-    else {
-      throw Ocp1Error.objectClassMismatch
-    }
-    let sessions = try await agent.$sessions._getValue(agent, flags: [])
-    guard let session = sessions.first(where: {
-      $0.connections.contains { $0.localEndpointID == target.idInternal }
-    }), let connection = session.connections.first(where: { $0.localEndpointID == target.idInternal })
-    else {
-      throw Ocp1Error.status(.invalidRequest)
-    }
+    let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
+    let (agent, session, connection) = try await application.sessionConnection(for: target, with: context)
     try await agent.configureConnection(
       sessionID: session.idInternal,
       connectionID: connection.id,
       localEndpointID: connection.localEndpointID,
-      remoteEndpointID: try milanEndpointID(talker).blob
+      remoteEndpointID: try OcaRemoteEndpointID.blob(parsing: remote, adaptation: adaptation)
     )
-    context.print("bound endpoint \(target.idInternal) \"\(target.userLabel)\" (session \(session.idInternal)) to \(talker!)")
+    context.print("connected endpoint \(target.idInternal) \"\(target.userLabel)\" (session \(session.idInternal)) to \(remote!)")
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+}
+
+struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["disconnect-endpoint"]
+  static let summary = "Disconnect an input endpoint from its remote: <endpoint label or ID>"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportApplication.classIdentification]
+  }
+
+  @REPLCommandArgument
+  var endpoint: String!
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let application = context.currentObject as! OcaMediaTransportApplication
+    let target = try await application.inputEndpoint(endpoint)
+    if let application = application as? DanteOcaMediaTransportApplication {
+      try await application.clearChannelEndpoint(try await application.channelEndpointID(for: target))
+      return
+    }
+    let (agent, session, _) = try await application.sessionConnection(for: target, with: context)
+    try await agent.reset(session: session.idInternal)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
