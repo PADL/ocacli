@@ -71,6 +71,26 @@ private extension OcaMediaTransportApplication {
   }
 }
 
+private extension Aes67OcaMediaTransportApplication {
+  /// The SDP of a stream source registry entry, by session name.
+  func registeredSDP(named name: String, with context: Context) async throws -> String {
+    let registryONo = try await $streamSourceRegistryONo._getValue(self, flags: [])
+    guard registryONo != OcaInvalidONo,
+          let registry = try await context.connection.resolve(objectOfUnknownClass: registryONo)
+          as? Aes67StreamSourceListAgent
+    else {
+      throw Ocp1Error.status(.invalidRequest)
+    }
+    let sources = try await registry.$streamSources._getValue(registry, flags: [])
+    guard let source = sources.first(where: { String(bytes: $0.idExternal, encoding: .utf8) == name }),
+          !source.sdpString.isEmpty
+    else {
+      throw Ocp1Error.status(.parameterOutOfRange)
+    }
+    return source.sdpString
+  }
+}
+
 private extension DanteOcaMediaTransportApplication {
   /// The channel endpoint carrying the same external ID as a stream endpoint.
   func channelEndpointID(for endpoint: OcaMediaStreamEndpoint) async throws -> OcaID16 {
@@ -300,6 +320,13 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
       context.print("subscribed channel endpoint \(id) \"\(target.userLabel)\" to \(remote!)")
       return
     }
+    if let application = application as? Aes67OcaMediaTransportApplication {
+      // AES70-21 connects by SDP: given verbatim, or looked up by name in the registry
+      let sdp = remote.hasPrefix("v=0") ? remote! : try await application.registeredSDP(named: remote, with: context)
+      try await application.submitSDP(target.idInternal, sdp: sdp)
+      context.print("submitted SDP for endpoint \(target.idInternal) \"\(target.userLabel)\"")
+      return
+    }
     let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
     let (agent, session, connection) = try await application.sessionConnection(for: target, with: context)
     try await agent.configureConnection(
@@ -332,6 +359,10 @@ struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     let target = try await application.inputEndpoint(endpoint)
     if let application = application as? DanteOcaMediaTransportApplication {
       try await application.clearChannelEndpoint(try await application.channelEndpointID(for: target))
+      return
+    }
+    if let application = application as? Aes67OcaMediaTransportApplication {
+      try await application.submitSDP(target.idInternal, sdp: "")
       return
     }
     let (agent, session, _) = try await application.sessionConnection(for: target, with: context)

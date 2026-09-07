@@ -68,3 +68,32 @@ struct GetChannelEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlock
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
 
+
+/// AES70-21 stream source registry listing.
+struct GetStreamSources: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["get-stream-sources", "stream-sources"]
+  static let summary = "List the stream source registry"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [Aes67StreamSourceListAgent.classIdentification]
+  }
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let registry = context.currentObject as! Aes67StreamSourceListAgent
+    let sources = try await registry.$streamSources._getValue(registry, flags: [])
+    for source in sources {
+      let name = String(bytes: source.idExternal, encoding: .utf8) ?? ""
+      var line = "\"\(name)\"\t\(source.streamCastMode)\t\(source.streamMode.frameFormat) \(source.streamMode.encodingType) \(Int(source.streamMode.samplingRate)) Hz x\(source.streamMode.channelCount)"
+      if let data = try? source.adaptationData.decode(Aes67EndpointAdaptationData.self),
+         let ip = data.ipParameters.first
+      {
+        line += "\t\(ip.destinationAddress):\(ip.destinationPort)"
+      }
+      context.print(line)
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+}
