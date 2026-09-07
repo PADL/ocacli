@@ -237,6 +237,13 @@ final class REPLCommandRegistry: @unchecked Sendable {
     replTokenize(command).tokens.map(\.value)
   }
 
+  /// A wrong argument count reads better as the command's usage than as an OCA status.
+  struct UsageError: Error, CustomStringConvertible, LocalizedError {
+    let summary: String
+    var description: String { "usage: \(summary)" }
+    var errorDescription: String? { description }
+  }
+
   func command(from arguments: [String], context: Context) async throws -> REPLCommand {
     var arguments = arguments
     guard !arguments.isEmpty else {
@@ -263,7 +270,7 @@ final class REPLCommandRegistry: @unchecked Sendable {
         if let minimumRequiredArguments, arguments.count >= minimumRequiredArguments {
           break
         } else {
-          throw Ocp1Error.status(.parameterOutOfRange)
+          throw UsageError(summary: type.summary)
         }
       }
 
@@ -303,7 +310,7 @@ final class REPLCommandRegistry: @unchecked Sendable {
     }
 
     if argumentIndex < arguments.count {
-      throw Ocp1Error.status(.parameterOutOfRange)
+      throw UsageError(summary: type.summary)
     }
 
     return c
