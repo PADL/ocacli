@@ -43,6 +43,10 @@ private extension OcaMediaStreamEndpoint {
        idExternal.count == 10
     {
       line += "\tmilan \(String(external.entityID, radix: 16)):\(external.streamIndex)"
+    } else if let text = String(bytes: idExternal, encoding: .utf8),
+              !text.isEmpty, text.allSatisfy({ !$0.isNewline && ($0.isLetter || $0.isNumber || $0.isPunctuation || $0.isSymbol || $0 == " ") })
+    {
+      line += "\text \"\(text)\""
     } else if !idExternal.isEmpty {
       line += "\text \(hex(idExternal))"
     }
