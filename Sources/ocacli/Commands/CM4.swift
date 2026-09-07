@@ -36,7 +36,33 @@ private extension OcaMediaStreamEndpoint {
   }
 }
 
+/// The zero-based index of the argument the cursor is on.
+func replArgumentIndex(_ buffer: String) -> Int {
+  let (tokens, endsWithSeparator) = replTokenize(buffer)
+  return max(0, tokens.count - 1 - (endsWithSeparator ? 0 : 1))
+}
+
+private extension OcaMediaTransportSessionAgent {
+  func sessionCompletions() async -> [String]? {
+    guard let sessions = try? await $sessions._getValue(self, flags: []) else { return nil }
+    return sessions.map { String($0.idInternal) }
+  }
+}
+
 private extension OcaMediaTransportApplication {
+  /// Endpoint IDs, for commands taking any endpoint.
+  func endpointCompletions() async -> [String]? {
+    guard let endpoints = try? await $endpoints._getValue(self, flags: []) else { return nil }
+    return endpoints.map { String($0.idInternal) }
+  }
+
+  /// Input endpoint labels and IDs, for the connect and disconnect commands.
+  func inputEndpointCompletions() async -> [String]? {
+    guard let endpoints = try? await $endpoints._getValue(self, flags: []) else { return nil }
+    let inputs = endpoints.filter { $0.direction == .input }
+    return inputs.map(\.userLabel).filter { !$0.isEmpty } + inputs.map { String($0.idInternal) }
+  }
+
   /// The input endpoint named by label or ID.
   func inputEndpoint(_ name: String) async throws -> OcaMediaStreamEndpoint {
     let endpoints = try await $endpoints._getValue(self, flags: [])
@@ -73,7 +99,7 @@ private extension OcaMediaTransportApplication {
 
 private extension Aes67OcaMediaTransportApplication {
   /// The SDP of a stream source registry entry, by session name.
-  func registeredSDP(named name: String, with context: Context) async throws -> String {
+  func registeredSources(with context: Context) async throws -> [Aes67StreamSourceDescriptor] {
     let registryONo = try await $streamSourceRegistryONo._getValue(self, flags: [])
     guard registryONo != OcaInvalidONo,
           let registry = try await context.connection.resolve(objectOfUnknownClass: registryONo)
@@ -81,7 +107,16 @@ private extension Aes67OcaMediaTransportApplication {
     else {
       throw Ocp1Error.status(.invalidRequest)
     }
-    let sources = try await registry.$streamSources._getValue(registry, flags: [])
+    return try await registry.$streamSources._getValue(registry, flags: [])
+  }
+
+  func registeredSourceNames(with context: Context) async -> [String]? {
+    guard let sources = try? await registeredSources(with: context) else { return nil }
+    return sources.compactMap { String(bytes: $0.idExternal, encoding: .utf8) }.filter { !$0.isEmpty }
+  }
+
+  func registeredSDP(named name: String, with context: Context) async throws -> String {
+    let sources = try await registeredSources(with: context)
     guard let source = sources.first(where: { String(bytes: $0.idExternal, encoding: .utf8) == name }),
           !source.sdpString.isEmpty
     else {
@@ -137,7 +172,9 @@ struct GetEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComplet
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    await (context.currentObject as? OcaMediaTransportApplication)?.endpointCompletions()
+  }
 }
 
 struct GetEndpointCounters: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -161,7 +198,9 @@ struct GetEndpointCounters: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    await (context.currentObject as? OcaMediaTransportApplication)?.endpointCompletions()
+  }
 }
 
 struct GetSessions: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
@@ -210,7 +249,9 @@ struct GetSessions: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    await (context.currentObject as? OcaMediaTransportSessionAgent)?.sessionCompletions()
+  }
 }
 
 struct ConfigureConnection: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -244,7 +285,10 @@ struct ConfigureConnection: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
     )
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    guard replArgumentIndex(currentBuffer) == 0 else { return nil }
+    return await (context.currentObject as? OcaMediaTransportSessionAgent)?.sessionCompletions()
+  }
 }
 
 struct ResetSession: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -265,7 +309,9 @@ struct ResetSession: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecific
     try await agent.reset(session: OcaMediaTransportSessionID(sessionID))
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    await (context.currentObject as? OcaMediaTransportSessionAgent)?.sessionCompletions()
+  }
 }
 
 struct SetStreamingEnabled: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -289,7 +335,13 @@ struct SetStreamingEnabled: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
     try await agent.set(session: OcaMediaTransportSessionID(sessionID), streamingEnabled: enabled)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    switch replArgumentIndex(currentBuffer) {
+    case 0: await (context.currentObject as? OcaMediaTransportSessionAgent)?.sessionCompletions()
+    case 1: ["true", "false"]
+    default: nil
+    }
+  }
 }
 
 /// Connects an input endpoint, found by label or ID, to a remote endpoint: through the
@@ -338,7 +390,14 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     context.print("connected endpoint \(target.idInternal) \"\(target.userLabel)\" (session \(session.idInternal)) to \(remote!)")
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    guard let application = context.currentObject as? OcaMediaTransportApplication else { return nil }
+    switch replArgumentIndex(currentBuffer) {
+    case 0: return await application.inputEndpointCompletions()
+    case 1: return await (application as? Aes67OcaMediaTransportApplication)?.registeredSourceNames(with: context)
+    default: return nil
+    }
+  }
 }
 
 struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
@@ -369,5 +428,7 @@ struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     try await agent.reset(session: session.idInternal)
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    await (context.currentObject as? OcaMediaTransportApplication)?.inputEndpointCompletions()
+  }
 }

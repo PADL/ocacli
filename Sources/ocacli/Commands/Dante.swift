@@ -65,7 +65,12 @@ struct GetChannelEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlock
     }
   }
 
-  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    guard let application = context.currentObject as? DanteOcaMediaTransportApplication,
+          let endpoints = try? await application.$channelEndpoints._getValue(application, flags: [])
+    else { return nil }
+    return endpoints.keys.map { String($0) }
+  }
 }
 
 
