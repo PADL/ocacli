@@ -82,7 +82,7 @@ struct Get: REPLCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    guard let keyPath = await context.currentObject.propertyKeyPath(for: propertyName) else {
+    guard let keyPath = context.currentObject.propertyKeyPath(for: propertyName) else {
       throw Ocp1Error.status(.parameterError)
     }
 
