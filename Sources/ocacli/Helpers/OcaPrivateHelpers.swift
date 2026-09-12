@@ -127,3 +127,21 @@ extension OcaRoot {
     }
   }
 }
+
+extension OcaRoot {
+  /// The device's own response to a property's getter, undecoded.
+  ///
+  /// On OCP.2 these are the JSON members as they arrived, so a member our datatype does not
+  /// model is not lost the way decoding into it would lose it.
+  func getPropertyResponseParameters(keyPath: AnyKeyPath) async throws -> Ocp1Parameters {
+    let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
+    guard let getMethodID = subject.getMethodID else {
+      throw Ocp1Error.status(.notImplemented)
+    }
+    let response = try await sendCommandRrq(methodID: getMethodID, parameters: Ocp1Parameters())
+    guard response.statusCode == .ok else {
+      throw Ocp1Error.status(response.statusCode)
+    }
+    return response.parameters
+  }
+}

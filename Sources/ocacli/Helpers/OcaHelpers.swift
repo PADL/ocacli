@@ -19,6 +19,7 @@ import SwiftOCA
 
 private let dumpConcurrency = 8
 private let dumpActionObjectsKey = "ActionObjects"
+private let dumpObjectNumberKey = "ONo"
 
 private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
   _ elements: [Element],
@@ -115,6 +116,77 @@ extension OcaRoot {
     return jsonObject
   }
 
+  /// Every property's getter response, as the device wrote it, merged into one object.
+  ///
+  /// OCP.2 responses are JSON with the device's own member names, so taking them verbatim
+  /// shows what the device said rather than what the class model can decode: a member our
+  /// datatype does not have survives, under the spelling the device used for it.
+  private func getRawDumpPropertyJsonObject() async -> [String: any Sendable] {
+    guard self is OcaWorker else {
+      return [:]
+    }
+
+    // the object number is ours, but the class is the device's answer, which can name a
+    // subclass we do not model (and whose extra properties we cannot ask for)
+    var identity: [String: any Sendable] = [dumpObjectNumberKey: objectNumber]
+    await identity.merge(getRawClassIdentification()) { _, new in new }
+
+    let properties = await Array(allPropertyKeyPaths)
+    let responses = await boundedConcurrentMap(
+      properties,
+      maxConcurrentTasks: dumpConcurrency
+    ) { propertyEntry in
+      // a property without a getter, or one the device refuses, contributes nothing
+      await (try? self.getPropertyResponseParameters(keyPath: propertyEntry.value)) ??
+        Ocp1Parameters()
+    }
+
+    return responses.reduce(into: identity) { result, parameters in
+      guard let object = parameters.ocp2SendableParameters else { return }
+      result.merge(object) { _, new in new }
+    }
+  }
+
+  /// The device's own `GetClassIdentification` response, or nothing if it will not answer.
+  private func getRawClassIdentification() async -> [String: any Sendable] {
+    guard let response = try? await sendCommandRrq(
+      methodID: OcaMethodID("1.1"),
+      parameters: Ocp1Parameters()
+    ), response.statusCode == .ok,
+    let object = response.parameters.ocp2SendableParameters
+    else {
+      return [:]
+    }
+    return object
+  }
+
+  private func getRawDumpJsonObject(context: Context) async -> [String: any Sendable] {
+    // a matrix's members are assembled from GetMembers rather than returned by a property
+    // getter, so a matrix is dumped through the class model whatever the protocol
+    if self is OcaMatrix {
+      return await getDumpJsonObject(context: context)
+    }
+
+    var jsonObject = await getRawDumpPropertyJsonObject()
+
+    guard let block = self as? OcaBlock else {
+      return jsonObject
+    }
+
+    // the device's own member list stays as it sent it, under whichever name it used; the
+    // children are resolved alongside it, as a dump is recursive
+    if let members = try? await block.resolveActionObjects() {
+      jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(
+        members,
+        maxConcurrentTasks: dumpConcurrency
+      ) { member in
+        await member.getRawDumpJsonObject(context: context)
+      }
+    }
+
+    return jsonObject
+  }
+
   private func getDumpJsonObject(context: Context) async -> [String: any Sendable] {
     if let matrix = self as? OcaMatrix {
       return await matrix.getJsonValue(flags: context.contextFlags.cachedPropertyResolutionFlags)
@@ -144,7 +216,13 @@ extension OcaRoot {
     context: Context,
     options: JSONSerialization.WritingOptions
   ) async throws -> Data {
-    let jsonObject = await getDumpJsonObject(context: context)
+    // on OCP.2 the device speaks JSON itself, so dump what it sent rather than what the
+    // class model could decode and re-encode
+    let jsonObject = if context.connection.controlProtocol == .ocp2 {
+      await getRawDumpJsonObject(context: context)
+    } else {
+      await getDumpJsonObject(context: context)
+    }
     #if canImport(Darwin)
     // an invalid value aborts inside Darwin's NSJSONSerialization rather than
     // throwing as corelibs does, so refuse it here — naming the offenders,
