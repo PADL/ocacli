@@ -44,6 +44,8 @@ struct OCACLI: AsyncParsableCommand {
   var udp = false
   @Flag(name: [.short, .long], help: "Use WebSocket instead of TCP")
   var websocket = false
+  @Flag(name: [.customShort("2"), .long], help: "Use OCP.2 (AES70-4 JSON) instead of OCP.1")
+  var ocp2 = false
 
   @OptionGroup(title: "TLS")
   var tlsOptions: TLSOptions
@@ -160,6 +162,7 @@ struct OCACLI: AsyncParsableCommand {
       responseTimeout: responseTimeout.map { .seconds($0) },
       batchSize: batchSize.map { UInt32($0) },
       batchThreshold: batchThreshold.map { .milliseconds($0) },
+      controlProtocol: ocp2 ? .ocp2 : .ocp1,
       insecure: tlsOptions.insecure
     )
   }

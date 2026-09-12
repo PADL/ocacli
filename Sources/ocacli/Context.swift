@@ -417,6 +417,7 @@ final class Context: @unchecked Sendable {
     responseTimeout: Duration? = nil,
     batchSize: UInt32? = nil,
     batchThreshold: Duration? = nil,
+    controlProtocol: OcaControlProtocol = .ocp1,
     insecure: Bool = false
   ) async throws {
     self.contextFlags = contextFlags
@@ -432,7 +433,8 @@ final class Context: @unchecked Sendable {
         flags: connectionFlags,
         connectionTimeout: connectionTimeout ?? .seconds(2),
         responseTimeout: responseTimeout ?? .seconds(2),
-        batchingOptions: batchingOptions
+        batchingOptions: batchingOptions,
+        controlProtocol: controlProtocol
       ))
     currentObject = await connection.rootBlock
     try await changeCurrentPath(to: connection.rootBlock)
