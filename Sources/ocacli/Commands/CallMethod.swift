@@ -26,8 +26,10 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
   @REPLCommandArgument
   var methodID: String!
 
+  /// hex-encoded OCP.1 parameters (`0x0100`), or an OCP.2 `Parameters` object
+  /// (`{"Value":true}`), according to the protocol the connection speaks
   @REPLCommandArgument
-  var parameterData: Data?
+  var parameters: String?
 
   init() {}
 
@@ -35,14 +37,36 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
     let methodID = try OcaMethodID(unsafeString: methodID)
     let response = try await context.currentObject.sendCommandRrq(
       methodID: methodID,
-      parameterCount: parameterData != nil ? 1 : 0,
-      parameterData: parameterData ?? .init()
+      parameters: encodedParameters(with: context)
     )
     guard response.statusCode == .ok else {
       throw Ocp1Error.status(response.statusCode)
     }
-    if !response.parameters.parameterData.isEmpty {
+    guard !response.parameters.isEmpty else { return }
+    if let object = response.parameters.ocp2Parameters {
+      let data = try JSONSerialization.data(
+        withJSONObject: object,
+        options: [.prettyPrinted, .sortedKeys]
+      )
+      print(String(decoding: data, as: UTF8.self))
+    } else {
       print("0x\(response.parameters.parameterData.hexString)")
+    }
+  }
+
+  private func encodedParameters(with context: Context) throws -> Ocp1Parameters {
+    guard let parameters else { return Ocp1Parameters() }
+
+    switch context.connection.controlProtocol {
+    case .ocp1:
+      // the payload goes as a single parameter, so a device that checks the count answers
+      // a multi-parameter method with ParameterOutOfRange; OCP.2 has no such count
+      return try Ocp1Parameters(
+        parameterCount: 1,
+        parameterData: Data(fromHexEncodedString: parameters)
+      )
+    case .ocp2:
+      return try Ocp1Parameters(ocp2ParameterData: Data(parameters.utf8))
     }
   }
 
