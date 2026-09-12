@@ -54,19 +54,19 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
     }
   }
 
-  private func encodedParameters(with context: Context) throws -> Ocp1Parameters {
-    guard let parameters else { return Ocp1Parameters() }
+  private func encodedParameters(with context: Context) throws -> OcaParameters {
+    guard let parameters else { return OcaParameters() }
 
     switch context.connection.controlProtocol {
     case .ocp1:
       // the payload goes as a single parameter, so a device that checks the count answers
       // a multi-parameter method with ParameterOutOfRange; OCP.2 has no such count
-      return try Ocp1Parameters(
+      return try OcaParameters(
         parameterCount: 1,
         parameterData: Data(fromHexEncodedString: parameters)
       )
     case .ocp2:
-      return try Ocp1Parameters(ocp2ParameterData: Data(parameters.utf8))
+      return try OcaParameters(ocp2ParameterData: Data(parameters.utf8))
     }
   }
 
