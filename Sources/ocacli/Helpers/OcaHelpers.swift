@@ -138,7 +138,7 @@ extension OcaRoot {
     ) { propertyEntry in
       // a property without a getter, or one the device refuses, contributes nothing
       await (try? self.getPropertyResponseParameters(keyPath: propertyEntry.value)) ??
-        Ocp1Parameters()
+        OcaParameters()
     }
 
     return responses.reduce(into: identity) { result, parameters in
@@ -151,7 +151,7 @@ extension OcaRoot {
   private func getRawClassIdentification() async -> [String: any Sendable] {
     guard let response = try? await sendCommandRrq(
       methodID: OcaMethodID("1.1"),
-      parameters: Ocp1Parameters()
+      parameters: OcaParameters()
     ), response.statusCode == .ok,
     let object = response.parameters.ocp2Parameters
     else {
