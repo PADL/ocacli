@@ -15,7 +15,7 @@
 //
 
 import Foundation
-import SwiftOCA
+@_spi(SwiftOCAPrivate) import SwiftOCA
 
 private let dumpConcurrency = 8
 private let dumpActionObjectsKey = "ActionObjects"
