@@ -18,8 +18,6 @@ import Foundation
 import SwiftOCA
 
 private let dumpConcurrency = 8
-private let dumpTypeKey = "type"
-private let dumpMembersKey = "members"
 private let dumpActionObjectsKey = "ActionObjects"
 
 private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
@@ -114,7 +112,6 @@ extension OcaRoot {
     var jsonObject = propertyEntries.reduce(into: [String: any Sendable]()) { result, value in
       result.merge(value) { _, new in new }
     }
-    jsonObject[dumpTypeKey] = String(describing: type(of: self))
     return jsonObject
   }
 
@@ -132,7 +129,7 @@ extension OcaRoot {
     jsonObject.removeValue(forKey: dumpActionObjectsKey)
 
     if let members = try? await block.resolveActionObjects() {
-      jsonObject[dumpMembersKey] = await boundedConcurrentMap(
+      jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(
         members,
         maxConcurrentTasks: dumpConcurrency
       ) { member in
