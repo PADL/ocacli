@@ -15,7 +15,7 @@
 //
 
 import Foundation
-@_spi(SwiftOCAPrivate) import SwiftOCA
+import SwiftOCA
 
 private let dumpConcurrency = 8
 private let dumpActionObjectsKey = "ActionObjects"
@@ -142,7 +142,7 @@ extension OcaRoot {
     }
 
     return responses.reduce(into: identity) { result, parameters in
-      guard let object = parameters.ocp2SendableParameters else { return }
+      guard let object = parameters.ocp2Parameters else { return }
       result.merge(object) { _, new in new }
     }
   }
@@ -153,7 +153,7 @@ extension OcaRoot {
       methodID: OcaMethodID("1.1"),
       parameters: Ocp1Parameters()
     ), response.statusCode == .ok,
-    let object = response.parameters.ocp2SendableParameters
+    let object = response.parameters.ocp2Parameters
     else {
       return [:]
     }
