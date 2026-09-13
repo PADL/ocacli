@@ -21,6 +21,13 @@ private let dumpConcurrency = 8
 private let dumpActionObjectsKey = "ActionObjects"
 private let dumpObjectNumberKey = "ONo"
 
+/// A property's OCP.2 name, derived from its Swift name as SwiftOCA does:
+/// `actionObjects` → `ActionObjects`.
+private func ocp2PropertyName(_ swiftName: String) -> String {
+  guard let first = swiftName.first else { return swiftName }
+  return first.uppercased() + swiftName.dropFirst()
+}
+
 private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
   _ elements: [Element],
   maxConcurrentTasks: Int,
@@ -95,10 +102,6 @@ extension OcaBlock {
 @OcaConnection
 extension OcaRoot {
   private func getDumpPropertyJsonObject(context: Context) async -> [String: any Sendable] {
-    guard self is OcaWorker else {
-      return [:]
-    }
-
     let flags = context.contextFlags.cachedPropertyResolutionFlags
     let properties = await Array(allPropertyKeyPaths)
     let propertyEntries = await boundedConcurrentMap(
@@ -110,41 +113,57 @@ extension OcaRoot {
         [:]
     }
 
-    var jsonObject = propertyEntries.reduce(into: [String: any Sendable]()) { result, value in
+    return propertyEntries.reduce(into: [String: any Sendable]()) { result, value in
       result.merge(value) { _, new in new }
     }
-    return jsonObject
   }
 
-  /// Every property's getter response, as the device wrote it, merged into one object.
+  /// Every property's getter response, as the device wrote it, under the property's name.
   ///
   /// OCP.2 responses are JSON with the device's own member names, so taking them verbatim
   /// shows what the device said rather than what the class model can decode: a member our
   /// datatype does not have survives, under the spelling the device used for it.
+  ///
+  /// The responses are keyed by property rather than merged, as their members are named for
+  /// the getter's parameters and not for the property: `GetActionObjects` and
+  /// `GetDatasetObjects` both answer `Objects`, and `GetMostRecentParamDatasetONo` answers
+  /// `ONo`, which would stand in for the object's own.
   private func getRawDumpPropertyJsonObject() async -> [String: any Sendable] {
-    guard self is OcaWorker else {
-      return [:]
-    }
-
-    // the object number is ours, but the class is the device's answer, which can name a
-    // subclass we do not model (and whose extra properties we cannot ask for)
-    var identity: [String: any Sendable] = [dumpObjectNumberKey: objectNumber]
-    await identity.merge(getRawClassIdentification()) { _, new in new }
-
     let properties = await Array(allPropertyKeyPaths)
     let responses = await boundedConcurrentMap(
       properties,
       maxConcurrentTasks: dumpConcurrency
-    ) { propertyEntry in
+    ) { propertyEntry -> (String, any Sendable)? in
       // a property without a getter, or one the device refuses, contributes nothing
-      await (try? self.getPropertyResponseParameters(keyPath: propertyEntry.value)) ??
-        OcaParameters()
+      guard let parameters = try? await self
+        .getPropertyResponseParameters(keyPath: propertyEntry.value),
+        let object = parameters.ocp2Parameters
+      else {
+        return nil
+      }
+
+      // a lone parameter is the property's value; a getter answering with several (a bounded
+      // property's value and its limits) keeps them together as the device sent them
+      let value: any Sendable = if object.count == 1, let member = object.first {
+        member.value
+      } else {
+        object
+      }
+      return (ocp2PropertyName(propertyEntry.key), value)
     }
 
-    return responses.reduce(into: identity) { result, parameters in
-      guard let object = parameters.ocp2Parameters else { return }
-      result.merge(object) { _, new in new }
+    var jsonObject = [String: any Sendable]()
+    for case let (name, value)? in responses {
+      jsonObject[name] = value
     }
+
+    // the object number is ours, but the class is the device's answer, which can name a
+    // subclass we do not model (and whose extra properties we cannot ask for); both go in
+    // last, so that nothing a getter answered can take their place
+    await jsonObject.merge(getRawClassIdentification()) { _, new in new }
+    jsonObject[dumpObjectNumberKey] = objectNumber
+
+    return jsonObject
   }
 
   /// The device's own `GetClassIdentification` response, or nothing if it will not answer.
@@ -173,8 +192,8 @@ extension OcaRoot {
       return jsonObject
     }
 
-    // the device's own member list stays as it sent it, under whichever name it used; the
-    // children are resolved alongside it, as a dump is recursive
+    // a dump is recursive, so the children's dumps take the place of the device's member
+    // list, which stays as it was sent if they cannot be resolved
     if let members = try? await block.resolveActionObjects() {
       jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(
         members,
