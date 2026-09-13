@@ -49,7 +49,7 @@ struct SetFlag: REPLCommand {
     }
     context.contextFlags.rawValue |= flag.rawValue
     try await context.connection
-      .set(options: Ocp1ConnectionOptions(flags: context.contextFlags.connectionFlags))
+      .set(options: OcaConnectionOptions(flags: context.contextFlags.connectionFlags))
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
@@ -72,7 +72,7 @@ struct ClearFlag: REPLCommand {
     }
     context.contextFlags.rawValue &= ~(flag.rawValue)
     try await context.connection
-      .set(options: Ocp1ConnectionOptions(flags: context.contextFlags.connectionFlags))
+      .set(options: OcaConnectionOptions(flags: context.contextFlags.connectionFlags))
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {

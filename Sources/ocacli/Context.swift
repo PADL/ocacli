@@ -92,8 +92,8 @@ struct ContextFlags: OptionSet, ExpressibleByArgument {
     self.init(fromString: argument)
   }
 
-  var connectionFlags: Ocp1ConnectionFlags {
-    var flags = Ocp1ConnectionFlags()
+  var connectionFlags: OcaConnectionFlags {
+    var flags = OcaConnectionFlags()
 
     if contains(.automaticReconnect) {
       flags.insert(.automaticReconnect)
@@ -223,7 +223,7 @@ enum DeviceEndpointInfo {
     }
   }
 
-  func getConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
+  func getConnection(options: OcaConnectionOptions) async throws -> OcaConnection {
     switch self {
     case .tcp:
       fallthrough
@@ -257,11 +257,11 @@ enum DeviceEndpointInfo {
   }
 
   #if canImport(Darwin)
-  @OcaConnection
+  @OcaConnectionActor
   private func getMachPortConnection(
     serviceName: String,
-    options: Ocp1ConnectionOptions
-  ) async throws -> Ocp1Connection {
+    options: OcaConnectionOptions
+  ) async throws -> OcaConnection {
     let connection = Ocp1MachPortConnection(serviceName: serviceName, options: options)
     try await connection.connect()
     return connection
@@ -269,27 +269,27 @@ enum DeviceEndpointInfo {
   #endif
 
   #if os(macOS) || os(iOS)
-  private func getWebSocketConnection(options: Ocp1ConnectionOptions) async throws
-    -> Ocp1Connection
+  private func getWebSocketConnection(options: OcaConnectionOptions) async throws
+    -> OcaConnection
   {
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
     }
     let url = URL(string: "ws://\(hostname):\(port)/")!
-    let connection = await Ocp1FlyingFoxConnection(url: url, options: options)
+    let connection = await OcaFlyingFoxConnection(url: url, options: options)
     try await connection.connect()
     return connection
   }
   #else
-  private func getWebSocketConnection(options: Ocp1ConnectionOptions) async throws
-    -> Ocp1Connection
+  private func getWebSocketConnection(options: OcaConnectionOptions) async throws
+    -> OcaConnection
   {
     throw Ocp1Error.serviceResolutionFailed
   }
   #endif
 
-  private func getRemoteConnection(options: Ocp1ConnectionOptions) async throws
-    -> Ocp1Connection
+  private func getRemoteConnection(options: OcaConnectionOptions) async throws
+    -> OcaConnection
   {
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
@@ -297,10 +297,10 @@ enum DeviceEndpointInfo {
     // SwiftOCA resolves the hostname (to its candidate addresses, in preference
     // order) on each connect attempt, so pass it through directly rather than
     // resolving here.
-    let connection: Ocp1Connection = if isDatagram {
-      try await Ocp1UDPConnection(host: hostname, port: port, options: options)
+    let connection: OcaConnection = if isDatagram {
+      try await OcaUDPConnection(host: hostname, port: port, options: options)
     } else {
-      try await Ocp1TCPConnection(host: hostname, port: port, options: options)
+      try await OcaTCPConnection(host: hostname, port: port, options: options)
     }
     try await connection.connect()
     return connection
@@ -314,8 +314,8 @@ enum DeviceEndpointInfo {
     credential: Ocp1TLSCredential,
     trustRoots: Ocp1TLSTrustRoots?,
     revocation: Ocp1TLSRevocationOptions,
-    options: Ocp1ConnectionOptions
-  ) async throws -> Ocp1Connection {
+    options: OcaConnectionOptions
+  ) async throws -> OcaConnection {
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
     }
@@ -339,8 +339,8 @@ enum DeviceEndpointInfo {
     credential: Ocp1TLSCredential,
     trustRoots: Ocp1TLSTrustRoots?,
     revocation: Ocp1TLSRevocationOptions,
-    options: Ocp1ConnectionOptions
-  ) async throws -> Ocp1Connection {
+    options: OcaConnectionOptions
+  ) async throws -> OcaConnection {
     guard let hostname else {
       throw Ocp1Error.serviceResolutionFailed
     }
@@ -360,8 +360,8 @@ enum DeviceEndpointInfo {
     credential: Ocp1TLSCredential,
     trustRoots: Ocp1TLSTrustRoots?,
     revocation: Ocp1TLSRevocationOptions,
-    options: Ocp1ConnectionOptions
-  ) async throws -> Ocp1Connection {
+    options: OcaConnectionOptions
+  ) async throws -> OcaConnection {
     throw Ocp1Error.notImplemented
   }
 
@@ -369,25 +369,25 @@ enum DeviceEndpointInfo {
     credential: Ocp1TLSCredential,
     trustRoots: Ocp1TLSTrustRoots?,
     revocation: Ocp1TLSRevocationOptions,
-    options: Ocp1ConnectionOptions
-  ) async throws -> Ocp1Connection {
+    options: OcaConnectionOptions
+  ) async throws -> OcaConnection {
     throw Ocp1Error.notImplemented
   }
   #endif
 
-  private func getLocalConnection(options: Ocp1ConnectionOptions) async throws -> Ocp1Connection {
+  private func getLocalConnection(options: OcaConnectionOptions) async throws -> OcaConnection {
     guard let path else {
       throw Ocp1Error.serviceResolutionFailed
     }
     #if canImport(IORing)
-    let connection: Ocp1Connection = if isDatagram {
-      try await Ocp1IORingDomainSocketDatagramConnection(path: path, options: options)
+    let connection: OcaConnection = if isDatagram {
+      try await OcaIORingDomainSocketDatagramConnection(path: path, options: options)
     } else {
-      try await Ocp1TCPConnection(path: path, options: options)
+      try await OcaTCPConnection(path: path, options: options)
     }
     #else
     guard !isDatagram else { throw Errno.addressFamilyNotSupported }
-    let connection = try await Ocp1TCPConnection(path: path, options: options)
+    let connection = try await OcaTCPConnection(path: path, options: options)
     #endif
     try await connection.connect()
     return connection
@@ -395,14 +395,14 @@ enum DeviceEndpointInfo {
 }
 
 final class Context: @unchecked Sendable {
-  let connection: Ocp1Connection
+  let connection: OcaConnection
   let logger: Logger
   /// the line editor, when there is one, so that a command can be interrupted from the keyboard
   var lineReader: AsyncLineReader.LineReader?
 
   // the following variables should only be mutated by the command sink (the async task)
   var contextFlags: ContextFlags
-  var subscriptions = [OcaONo: Ocp1Connection.SubscriptionCancellable]()
+  var subscriptions = [OcaONo: OcaConnection.SubscriptionCancellable]()
 
   // the following variables can be read by the command source (the event loop)
   private(set) var currentObject: OcaRoot
@@ -422,14 +422,14 @@ final class Context: @unchecked Sendable {
   ) async throws {
     self.contextFlags = contextFlags
     self.logger = logger
-    let batchingOptions = try Ocp1ConnectionOptions.BatchingOptions(
+    let batchingOptions = try OcaConnectionOptions.BatchingOptions(
       batchSize: batchSize,
       batchThreshold: batchThreshold
     )
     var connectionFlags = self.contextFlags.connectionFlags
     if insecure { connectionFlags.insert(.disableCertificateVerification) }
     connection = try await deviceEndpointInfo
-      .getConnection(options: Ocp1ConnectionOptions(
+      .getConnection(options: OcaConnectionOptions(
         flags: connectionFlags,
         connectionTimeout: connectionTimeout ?? .seconds(2),
         responseTimeout: responseTimeout ?? .seconds(2),

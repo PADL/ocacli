@@ -53,7 +53,7 @@ private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
   }
 }
 
-@OcaConnection
+@OcaConnectionActor
 extension OcaBlock {
   /// The roles of every action object, or nil if any of them is missing from the cache.
   ///
@@ -92,7 +92,7 @@ extension OcaBlock {
   }
 }
 
-@OcaConnection
+@OcaConnectionActor
 extension OcaRoot {
   private func getDumpPropertyJsonObject(context: Context) async -> [String: any Sendable] {
     let flags = context.contextFlags.cachedPropertyResolutionFlags
