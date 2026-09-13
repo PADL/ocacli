@@ -144,4 +144,11 @@ extension OcaRoot {
     }
     return response.parameters
   }
+
+  /// The name a property goes by in a dump, which is SwiftOCA's JSON name for it whatever the
+  /// protocol, and not the name its getter's response parameter happens to have.
+  func jsonPropertyName(keyPath: AnyKeyPath) -> String {
+    let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
+    return _jsonPropertyName(for: subject.propertyIDs[0])
+  }
 }
