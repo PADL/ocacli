@@ -21,13 +21,6 @@ private let dumpConcurrency = 8
 private let dumpActionObjectsKey = "ActionObjects"
 private let dumpObjectNumberKey = "ONo"
 
-/// A property's OCP.2 name, derived from its Swift name as SwiftOCA does:
-/// `actionObjects` → `ActionObjects`.
-private func ocp2PropertyName(_ swiftName: String) -> String {
-  guard let first = swiftName.first else { return swiftName }
-  return first.uppercased() + swiftName.dropFirst()
-}
-
 private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
   _ elements: [Element],
   maxConcurrentTasks: Int,
@@ -149,7 +142,7 @@ extension OcaRoot {
       } else {
         object
       }
-      return (ocp2PropertyName(propertyEntry.key), value)
+      return (self.jsonPropertyName(keyPath: propertyEntry.value), value)
     }
 
     var jsonObject = [String: any Sendable]()
