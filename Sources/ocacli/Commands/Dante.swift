@@ -80,21 +80,19 @@ struct GetStreamSources: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
   static let summary = "List the stream source registry"
 
   static var supportedClasses: [OcaClassIdentification] {
-    [Aes67StreamSourceListAgent.classIdentification]
+    [Aes67StreamEndpointRegistry.classIdentification]
   }
 
   init() {}
 
   func execute(with context: Context) async throws {
-    let registry = context.currentObject as! Aes67StreamSourceListAgent
-    let sources = try await registry.$streamSources._getValue(registry, flags: [])
+    let registry = context.currentObject as! Aes67StreamEndpointRegistry
+    let sources = try await registry.$registry._getValue(registry, flags: [])
     for source in sources {
       let name = String(bytes: source.idExternal, encoding: .utf8) ?? ""
       var line = "\"\(name)\"\t\(source.streamCastMode)\t\(source.streamMode.frameFormat) \(source.streamMode.encodingType) \(Int(source.streamMode.samplingRate)) Hz x\(source.streamMode.channelCount)"
-      if let data = try? source.adaptationData.decode(Aes67EndpointAdaptationData.self),
-         let ip = data.ipParameters.first
-      {
-        line += "\t\(ip.destinationAddress):\(ip.destinationPort)"
+      if let address = source.addresses.first {
+        line += "\t\(address.ipAddress):\(address.port)"
       }
       context.print(line)
     }

@@ -99,15 +99,15 @@ private extension OcaMediaTransportApplication {
 
 private extension Aes67OcaMediaTransportApplication {
   /// The SDP of a stream source registry entry, by session name.
-  func registeredSources(with context: Context) async throws -> [Aes67StreamSourceDescriptor] {
+  func registeredSources(with context: Context) async throws -> [Aes67StreamEndpointDescriptor] {
     let registryONo = try await $streamSourceRegistryONo._getValue(self, flags: [])
     guard registryONo != OcaInvalidONo,
           let registry = try await context.connection.resolve(objectOfUnknownClass: registryONo)
-          as? Aes67StreamSourceListAgent
+          as? Aes67StreamEndpointRegistry
     else {
       throw Ocp1Error.status(.invalidRequest)
     }
-    return try await registry.$streamSources._getValue(registry, flags: [])
+    return try await registry.$registry._getValue(registry, flags: [])
   }
 
   func registeredSourceNames(with context: Context) async -> [String]? {
@@ -375,8 +375,8 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     if let application = application as? Aes67OcaMediaTransportApplication {
       // AES70-21 connects by SDP: given verbatim, or looked up by name in the registry
       let sdp = remote.hasPrefix("v=0") ? remote! : try await application.registeredSDP(named: remote, with: context)
-      try await application.submitSDP(target.idInternal, sdp: sdp)
-      context.print("submitted SDP for endpoint \(target.idInternal) \"\(target.userLabel)\"")
+      try await application.configureEndpointFromSDP(target.idInternal, sdpString: sdp)
+      context.print("configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP")
       return
     }
     let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
@@ -421,7 +421,7 @@ struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
       return
     }
     if let application = application as? Aes67OcaMediaTransportApplication {
-      try await application.submitSDP(target.idInternal, sdp: "")
+      try await application.configureEndpointFromSDP(target.idInternal, sdpString: "")
       return
     }
     let (agent, session, _) = try await application.sessionConnection(for: target, with: context)
