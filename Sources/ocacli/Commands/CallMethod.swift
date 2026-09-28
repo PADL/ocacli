@@ -15,7 +15,7 @@
 //
 
 import Foundation
-import SwiftOCA
+@_spi(SwiftOCAPrivate) import SwiftOCA
 
 struct CallMethod: REPLCommand, REPLOptionalArguments {
   static let name = ["call-method"]
@@ -27,7 +27,8 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
   var methodID: String!
 
   /// hex-encoded OCP.1 parameters (`0x0100`), or an OCP.2 `Parameters` object
-  /// (`{"Value":true}`), according to the protocol the connection speaks
+  /// (`{"Value":true}`) or bare value (`true`) for a single-parameter method, according to the
+  /// protocol the connection speaks
   @REPLCommandArgument
   var parameters: String?
 
@@ -37,7 +38,7 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
     let methodID = try OcaMethodID(unsafeString: methodID)
     let response = try await context.currentObject.sendCommandRrq(
       methodID: methodID,
-      parameters: encodedParameters(with: context)
+      parameters: encodedParameters(methodID: methodID, with: context)
     )
     guard response.statusCode == .ok else {
       throw Ocp1Error.status(response.statusCode)
@@ -54,7 +55,10 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
     }
   }
 
-  private func encodedParameters(with context: Context) throws -> OcaParameters {
+  private func encodedParameters(
+    methodID: OcaMethodID,
+    with context: Context
+  ) throws -> OcaParameters {
     guard let parameters else { return OcaParameters() }
 
     switch context.connection.controlProtocol {
@@ -66,8 +70,29 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
         parameterData: Data(fromHexEncodedString: parameters)
       )
     case .ocp2:
-      return try OcaParameters(ocp2ParameterData: Data(parameters.utf8))
+      let json = try JSONSerialization.jsonObject(
+        with: Data(parameters.utf8),
+        options: .fragmentsAllowed
+      )
+      if let object = json as? [String: Any] {
+        return OcaParameters(ocp2Parameters: object)
+      }
+      // a bare value (`false`, `0`, `"name"`) is the method's single parameter
+      let name = ocp2SetterParameterName(methodID: methodID, object: context.currentObject)
+      return OcaParameters(ocp2Parameters: [name ?? "Value": json])
     }
+  }
+
+  /// The OCP.2 parameter name of the property whose setter is `methodID`, if there is one;
+  /// otherwise the device takes a lone parameter as `Value`.
+  private func ocp2SetterParameterName(methodID: OcaMethodID, object: OcaRoot) -> String? {
+    for keyPath in object.allPropertyKeyPathsUncached.values {
+      guard let property = object[keyPath: keyPath] as? any OcaPropertySubjectRepresentable,
+            property.setMethodID == methodID
+      else { continue }
+      return property._ocp2SetName(object)
+    }
+    return nil
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
