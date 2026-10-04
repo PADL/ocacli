@@ -32,7 +32,7 @@ struct ConstructActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClas
 
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
-    _ = try await block.constructActionObject(factory: factory.objectNumber)
+    _ = try await block.constructBlockUsingFactory(factoryONo: factory.objectNumber)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -53,7 +53,7 @@ struct DeleteActionObject: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
 
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
-    try await block.delete(actionObject: actionObject.objectNumber)
+    try await block.deleteMember(objectNumber: actionObject.objectNumber)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -97,7 +97,7 @@ struct AddSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecifi
       name: ""
     )
     let signalPath = OcaSignalPath(sourcePort: sourcePort, sinkPort: sinkPort)
-    let id = try await block.add(signalPath: signalPath)
+    let id = try await block.addSignalPath(path: signalPath)
     context.print(id)
   }
 
@@ -120,7 +120,7 @@ struct DeleteSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
     guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-    try await block.delete(signalPath: id)
+    try await block.deleteSignalPath(index: id)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -138,7 +138,7 @@ struct GetSignalPathRecursive: REPLCommand, REPLCurrentBlockCompletable, REPLCla
 
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
-    let signalPaths: [OcaUint16: OcaSignalPath] = try await block.getActionObjectsRecursive()
+    let signalPaths: [OcaUint16: OcaSignalPath] = try await block.getSignalPathsRecursive()
     context.print(signalPaths)
   }
 
@@ -182,8 +182,8 @@ struct FindActionObjectsByRole: REPLCommand, REPLCurrentBlockCompletable, REPLCl
   var searchName: String!
 
   func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult] {
-    try await block.find(
-      actionObjectsByRole: searchName,
+    try await block.findActionObjectsByRole(
+      searchName: searchName,
       nameComparisonType: .containsCaseInsensitive,
       resultFlags: .replSearchResultFlags
     )
@@ -241,8 +241,8 @@ struct FindActionObjectsByRoleRecursive: REPLCommand, REPLCurrentBlockCompletabl
   var searchName: String!
 
   func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult] {
-    try await block.findRecursive(
-      actionObjectsByRole: searchName,
+    try await block.findActionObjectsByRoleRecursive(
+      searchName: searchName,
       nameComparisonType: .containsCaseInsensitive,
       resultFlags: .replSearchResultFlags
     )
@@ -272,8 +272,8 @@ struct FindActionObjectsByLabelRecursive: REPLCommand, REPLCurrentBlockCompletab
   var searchName: String!
 
   func find(_ searchName: String, in block: OcaBlock) async throws -> [OcaObjectSearchResult] {
-    try await block.findRecursive(
-      actionObjectsByLabel: searchName,
+    try await block.findActionObjectsByLabelRecursive(
+      searchName: searchName,
       nameComparisonType: .containsCaseInsensitive,
       resultFlags: .replSearchResultFlags
     )

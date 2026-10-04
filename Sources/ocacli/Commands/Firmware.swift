@@ -221,14 +221,14 @@ struct BeginActiveComponentUpdate: REPLCommand, REPLClassSpecificCommand, REPLOp
       let isFinalChunk = chunk.count < chunkSize
       try await firmwareManager.addImageData(
         id: sequenceNumber,
-        OcaBlob(chunk),
+        imageData: OcaBlob(chunk),
         sync: !async || isFinalChunk
       )
       sequenceNumber += 1
     }
 
     if let verifyData = try await helper.verifyData {
-      try await firmwareManager.verifyImage(OcaBlob(verifyData))
+      try await firmwareManager.verifyImage(verifyData: OcaBlob(verifyData))
     }
 
     try await firmwareManager.endActiveImageUpdate()
@@ -358,13 +358,13 @@ struct FirmwareImageContainerUpdate: REPLCommand, REPLClassSpecificCommand, REPL
         let isFinalChunk = chunk.count < chunkSize
         try await firmwareManager.addImageData(
           id: sequenceNumber,
-          OcaBlob(chunk),
+          imageData: OcaBlob(chunk),
           sync: !async || isFinalChunk
         )
         sequenceNumber += 1
       }
 
-      try await firmwareManager.verifyImage(OcaBlob(verifyData))
+      try await firmwareManager.verifyImage(verifyData: OcaBlob(verifyData))
       try await firmwareManager.endActiveImageUpdate()
     }
 

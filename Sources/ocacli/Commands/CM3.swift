@@ -38,7 +38,7 @@ struct GetSourceConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockC
     let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
     if let id {
       guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-      let sourceConnector = try await mediaTransportNetwork.getSourceConnector(id)
+      let sourceConnector = try await mediaTransportNetwork.getSourceConnector(id: id)
       context.print("\(sourceConnector)")
     } else {
       let sourceConnectors = try await mediaTransportNetwork.getSourceConnectors()
@@ -70,7 +70,7 @@ struct GetSinkConnector: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCom
     let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
     if let id {
       guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-      let sinkConnector = try await mediaTransportNetwork.getSinkConnector(id)
+      let sinkConnector = try await mediaTransportNetwork.getSinkConnector(id: id)
       context.print("\(sinkConnector)")
     } else {
       let sinkConnectors = try await mediaTransportNetwork.getSinkConnectors()
@@ -102,7 +102,7 @@ struct GetConnectorStatus: REPLCommand, REPLOptionalArguments, REPLCurrentBlockC
     let mediaTransportNetwork = context.currentObject as! OcaMediaTransportNetwork
     if let id {
       guard let id = UInt16(exactly: id) else { throw Ocp1Error.status(.parameterOutOfRange) }
-      let connectorStatus = try await mediaTransportNetwork.getConnectorStatus(id)
+      let connectorStatus = try await mediaTransportNetwork.getConnectorStatus(connectorID: id)
       context.print("\(connectorStatus)")
     } else {
       let connectorStatuses = try await mediaTransportNetwork.getConnectorsStatuses()
@@ -128,7 +128,7 @@ struct GetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
   func execute(with context: Context) async throws {
     let mediaClock3 = context.currentObject as! OcaMediaClock3
 
-    let (nominalRate, _) = try await mediaClock3.getCurrentRate()
+    let nominalRate = try await mediaClock3.getCurrentRate().rate
     print("\(nominalRate)")
   }
 
@@ -158,10 +158,10 @@ struct SetNominalMediaClockRate: REPLCommand, REPLOptionalArguments, REPLCurrent
     let mediaClockRate = OcaMediaClockRate(nominalRate: nominalRate)
 
     if let timeSourceONo {
-      try await mediaClock3.set(currentRate: mediaClockRate, timeSourceONo: timeSourceONo)
+      try await mediaClock3.setCurrentRate(rate: mediaClockRate, timeSourceONo: timeSourceONo)
     } else {
-      let (_, timeSourceONo) = try await mediaClock3.getCurrentRate()
-      try await mediaClock3.set(currentRate: mediaClockRate, timeSourceONo: timeSourceONo)
+      let timeSourceONo = try await mediaClock3.getCurrentRate().timeSourceONo
+      try await mediaClock3.setCurrentRate(rate: mediaClockRate, timeSourceONo: timeSourceONo)
     }
   }
 
