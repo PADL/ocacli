@@ -32,7 +32,7 @@ struct ApplyParamDataSet: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
 
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
-    try await block.apply(paramDataset: paramDataset)
+    try await block.applyParamDataset(oNo: paramDataset)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -53,7 +53,7 @@ struct StoreCurrentParamData: REPLCommand, REPLCurrentBlockCompletable, REPLClas
 
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
-    try await block.store(currentParameterData: currentParameterData)
+    try await block.storeCurrentParameterData(oNo: currentParameterData)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -96,7 +96,7 @@ struct ApplyParameterData: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaBlock
     guard let parameterData = Data(hex: parameterData) else { throw Ocp1Error.status(.badFormat) }
-    try await block.apply(parameterData: OcaLongBlob(parameterData))
+    try await block.applyParameterData(data: OcaLongBlob(parameterData))
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -117,7 +117,7 @@ struct ApplyPatch: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCo
 
   func execute(with context: Context) async throws {
     let block = context.currentObject as! OcaDeviceManager
-    try await block.applyPatch(datasetONo: datasetONo)
+    try await block.applyPatch(oNo: datasetONo)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
@@ -156,22 +156,23 @@ struct DumpDataset: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
 
   func execute(with context: Context) async throws {
     let dataset = context.currentObject as! OcaDataset
-    let (size, handle) = try await dataset.openRead(lockState: .noLock)
+    let opened = try await dataset.openRead(requestedLockState: .noLock)
+    let handle = opened.handle
 
     var buffer = Data()
-    buffer.reserveCapacity(Int(size))
+    buffer.reserveCapacity(Int(opened.datasetSize))
     var position: OcaUint64 = 0
     do {
       while true {
-        let (endOfData, part) = try await dataset.read(
+        let result = try await dataset.read(
           handle: handle,
           position: position,
           partSize: datasetReadChunkSize
         )
-        buffer.append(part.wrappedValue)
-        position += OcaUint64(part.wrappedValue.count)
-        if endOfData { break }
-        if part.wrappedValue.isEmpty { break }
+        buffer.append(result.part.wrappedValue)
+        position += OcaUint64(result.part.wrappedValue.count)
+        if result.endOfData { break }
+        if result.part.wrappedValue.isEmpty { break }
       }
       try await dataset.close(handle: handle)
     } catch {
@@ -208,8 +209,9 @@ struct LoadDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificC
   func execute(with context: Context) async throws {
     let dataset = context.currentObject as! OcaDataset
     let payload = try parseDatasetSource(source)
-    let (maxPartSize, handle) = try await dataset.openWrite(lockState: .noLock)
-    let chunkSize = maxPartSize == 0 ? OcaUint64(payload.count) : maxPartSize
+    let opened = try await dataset.openWrite(requestedLockState: .noLock)
+    let handle = opened.handle
+    let chunkSize = opened.maxPartSize == 0 ? OcaUint64(payload.count) : opened.maxPartSize
 
     do {
       var position = 0
@@ -245,7 +247,7 @@ struct ClearDataset: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecific
 
   func execute(with context: Context) async throws {
     let dataset = context.currentObject as! OcaDataset
-    let (_, handle) = try await dataset.openWrite(lockState: .noLock)
+    let handle = try await dataset.openWrite(requestedLockState: .noLock).handle
     do {
       try await dataset.clear(handle: handle)
       try await dataset.close(handle: handle)
@@ -270,8 +272,8 @@ struct GetDatasetSizes: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
 
   func execute(with context: Context) async throws {
     let dataset = context.currentObject as! OcaDataset
-    let (current, max) = try await dataset.getDataSetSizes()
-    context.print("current: \(current) max: \(max)")
+    let sizes = try await dataset.getDatasetSizes()
+    context.print("current: \(sizes.currentSize) max: \(sizes.maxSize)")
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }

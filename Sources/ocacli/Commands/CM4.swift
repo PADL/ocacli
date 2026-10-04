@@ -161,7 +161,7 @@ struct GetEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComplet
     let statuses = try await application.$endpointStatuses._getValue(application, flags: [])
     let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
     if let id {
-      let endpoint = try await application.getEndpoint(OcaMediaStreamEndpointID(id))
+      let endpoint = try await application.getEndpoint(id: OcaMediaStreamEndpointID(id))
       context.print(endpoint.summary(status: statuses[endpoint.idInternal], adaptation: adaptation))
       context.print("\(endpoint)")
     } else {
@@ -192,7 +192,7 @@ struct GetEndpointCounters: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
 
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
-    let counterSet = try await application.getEndpointCounterSet(OcaMediaStreamEndpointID(id))
+    let counterSet = try await application.getEndpointCounterSet(endpointID: OcaMediaStreamEndpointID(id))
     for counter in counterSet.counter {
       context.print("\(counter.id)\t\(counter.role)\t\(counter.value)")
     }
@@ -225,7 +225,7 @@ struct GetSessions: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompleta
     let statuses = try await agent.$sessionStatuses._getValue(agent, flags: [])
     let sessionType = try await agent.$sessionType._getValue(agent, flags: [])
     let sessions: [OcaMediaTransportSession] = if let id {
-      [try await agent.getSession(OcaMediaTransportSessionID(id))]
+      [try await agent.getSession(id: OcaMediaTransportSessionID(id))]
     } else {
       try await agent.$sessions._getValue(agent, flags: [])
     }
@@ -272,7 +272,7 @@ struct ConfigureConnection: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
 
   func execute(with context: Context) async throws {
     let agent = context.currentObject as! OcaMediaTransportSessionAgent
-    let session = try await agent.getSession(OcaMediaTransportSessionID(sessionID))
+    let session = try await agent.getSession(id: OcaMediaTransportSessionID(sessionID))
     guard let connection = session.connections.first else {
       throw Ocp1Error.status(.invalidRequest)
     }
@@ -306,7 +306,7 @@ struct ResetSession: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecific
 
   func execute(with context: Context) async throws {
     let agent = context.currentObject as! OcaMediaTransportSessionAgent
-    try await agent.reset(session: OcaMediaTransportSessionID(sessionID))
+    try await agent.resetSession(id: OcaMediaTransportSessionID(sessionID))
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
@@ -332,7 +332,7 @@ struct SetStreamingEnabled: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
 
   func execute(with context: Context) async throws {
     let agent = context.currentObject as! OcaMediaTransportSessionAgent
-    try await agent.set(session: OcaMediaTransportSessionID(sessionID), streamingEnabled: enabled)
+    try await agent.setStreamingEnabled(id: OcaMediaTransportSessionID(sessionID), active: enabled)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
@@ -375,7 +375,7 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     if let application = application as? Aes67OcaMediaTransportApplication {
       // AES70-21 connects by SDP: given verbatim, or looked up by name in the registry
       let sdp = remote.hasPrefix("v=0") ? remote! : try await application.registeredSDP(named: remote, with: context)
-      try await application.configureEndpointFromSDP(target.idInternal, sdpString: sdp)
+      try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: sdp)
       context.print("configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP")
       return
     }
@@ -417,15 +417,15 @@ struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
     let application = context.currentObject as! OcaMediaTransportApplication
     let target = try await application.inputEndpoint(endpoint)
     if let application = application as? DanteOcaMediaTransportApplication {
-      try await application.clearChannelEndpoint(try await application.channelEndpointID(for: target))
+      try await application.clearChannelEndpoint(id: try await application.channelEndpointID(for: target))
       return
     }
     if let application = application as? Aes67OcaMediaTransportApplication {
-      try await application.configureEndpointFromSDP(target.idInternal, sdpString: "")
+      try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: "")
       return
     }
     let (agent, session, _) = try await application.sessionConnection(for: target, with: context)
-    try await agent.reset(session: session.idInternal)
+    try await agent.resetSession(id: session.idInternal)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {

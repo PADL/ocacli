@@ -519,8 +519,8 @@ final class Context: @unchecked Sendable {
   ) async throws -> (OcaObjectIdentification, OcaString) {
     let flags =
       OcaActionObjectSearchResultFlags([.oNo, .classIdentification, .containerPath, .role])
-    let searchResult = try await baseObject.find(
-      actionObjectsByPath: rolePath,
+    let searchResult = try await baseObject.findActionObjectsByRolePath(
+      searchPath: rolePath,
       resultFlags: flags
     )
 
@@ -719,8 +719,8 @@ final class Context: @unchecked Sendable {
     let searchResults: [OcaObjectSearchResult]
 
     do {
-      searchResults = try await block.find(
-        actionObjectsByRole: partialRole,
+      searchResults = try await block.findActionObjectsByRole(
+        searchName: partialRole,
         nameComparisonType: .substring,
         resultFlags: [.oNo, .role, .classIdentification]
       )

@@ -97,7 +97,7 @@ struct ChangePreSharedKey: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
   func execute(with context: Context) async throws {
     let securityManager = context.currentObject as! OcaSecurityManager
     guard let key = Data(hex: hexKey) else { throw Ocp1Error.status(.badFormat) }
-    try await securityManager.changePreSharedKey(identity: identity, key: LengthTaggedData(key))
+    try await securityManager.changePreSharedKey(identity: identity, newKey: LengthTaggedData(key))
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }

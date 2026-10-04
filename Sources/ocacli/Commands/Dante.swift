@@ -54,7 +54,7 @@ struct GetChannelEndpoints: REPLCommand, REPLOptionalArguments, REPLCurrentBlock
   func execute(with context: Context) async throws {
     let application = context.currentObject as! DanteOcaMediaTransportApplication
     if let id {
-      let endpoint = try await application.getChannelEndpoint(OcaID16(id))
+      let endpoint = try await application.getChannelEndpoint(id: OcaID16(id))
       context.print(endpoint.summary(id: OcaID16(id)))
       context.print("\(endpoint)")
     } else {

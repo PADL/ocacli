@@ -145,7 +145,7 @@ struct AddRegistryEntriesFromSDP: REPLCommand, REPLCurrentBlockCompletable, REPL
     } else {
       sdp!
     }
-    try await registry.addRegistryEntriesFromSDP(sdpString)
+    try await registry.addRegistryEntriesFromSDP(sdpString: sdpString)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
