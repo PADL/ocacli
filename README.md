@@ -50,6 +50,7 @@ ocacli
   show                             Show object properties
   statistics                       Show connection statistics
   subscribe                        Add a property event subscription
+  tree                             Draw the object tree under a block
   unlock                           Unlock object
   unsubscribe                      Remove a property event subscription
   up                               Change to parent object path

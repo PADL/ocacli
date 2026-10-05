@@ -17,13 +17,14 @@
 import Foundation
 import SwiftOCA
 
-private let dumpConcurrency = 8
 private let dumpActionObjectsKey = "ActionObjects"
 private let dumpObjectNumberKey = "ONo"
 
-private func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
+/// Transforms the elements concurrently, at most `maxConcurrentTasks` at a time, keeping
+/// their order.
+func boundedConcurrentMap<Element: Sendable, Value: Sendable>(
   _ elements: [Element],
-  maxConcurrentTasks: Int,
+  maxConcurrentTasks: Int = 8,
   _ transform: @Sendable @escaping (Element) async -> Value
 ) async -> [Value] {
   let concurrency = max(1, maxConcurrentTasks)
@@ -97,10 +98,7 @@ extension OcaRoot {
   private func getDumpPropertyJsonObject(context: Context) async -> [String: any Sendable] {
     let flags = context.contextFlags.cachedPropertyResolutionFlags
     let properties = await Array(allPropertyKeyPaths)
-    let propertyEntries = await boundedConcurrentMap(
-      properties,
-      maxConcurrentTasks: dumpConcurrency
-    ) { propertyEntry in
+    let propertyEntries = await boundedConcurrentMap(properties) { propertyEntry in
       let property = self[keyPath: propertyEntry.value] as! any OcaPropertyRepresentable
       return await (try? property.getJsonValue(self, keyPath: propertyEntry.value, flags: flags)) ??
         [:]
@@ -123,10 +121,7 @@ extension OcaRoot {
   /// `ONo`, which would stand in for the object's own.
   private func getRawDumpPropertyJsonObject() async -> [String: any Sendable] {
     let properties = await Array(allPropertyKeyPaths)
-    let responses = await boundedConcurrentMap(
-      properties,
-      maxConcurrentTasks: dumpConcurrency
-    ) { propertyEntry -> (String, any Sendable)? in
+    let responses = await boundedConcurrentMap(properties) { propertyEntry -> (String, any Sendable)? in
       // a property without a getter, or one the device refuses, contributes nothing
       guard let parameters = try? await self
         .getPropertyResponseParameters(keyPath: propertyEntry.value),
@@ -188,10 +183,7 @@ extension OcaRoot {
     // a dump is recursive, so the children's dumps take the place of the device's member
     // list, which stays as it was sent if they cannot be resolved
     if let members = try? await block.resolveActionObjects() {
-      jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(
-        members,
-        maxConcurrentTasks: dumpConcurrency
-      ) { member in
+      jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(members) { member in
         await member.getRawDumpJsonObject(context: context)
       }
     }
@@ -213,10 +205,7 @@ extension OcaRoot {
     jsonObject.removeValue(forKey: dumpActionObjectsKey)
 
     if let members = try? await block.resolveActionObjects() {
-      jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(
-        members,
-        maxConcurrentTasks: dumpConcurrency
-      ) { member in
+      jsonObject[dumpActionObjectsKey] = await boundedConcurrentMap(members) { member in
         await member.getDumpJsonObject(context: context)
       }
     }
