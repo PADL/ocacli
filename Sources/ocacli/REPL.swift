@@ -221,6 +221,7 @@ final class REPLCommandRegistry: @unchecked Sendable {
     register(Statistics.self)
     register(StoreCurrentParamData.self)
     register(Subscribe.self)
+    register(Tree.self)
     register(Unlock.self)
     register(Up.self)
     register(Unsubscribe.self)
