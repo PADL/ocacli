@@ -149,7 +149,7 @@ extension OcaRoot {
     // subclass we do not model (and whose extra properties we cannot ask for); both go in
     // last, so that nothing a getter answered can take their place
     await jsonObject.merge(getRawClassIdentification()) { _, new in new }
-    jsonObject[dumpObjectNumberKey] = objectNumber
+    jsonObject[dumpObjectNumberKey] = objectNumber.rawValue
 
     return jsonObject
   }

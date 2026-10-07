@@ -30,7 +30,7 @@ private func drawObjectTree(_ node: ObjectTreeNode) -> [String] {
   func line(_ node: ObjectTreeNode, prefix: String) -> String {
     let error = node.error.map { "  (error: \($0))" } ?? ""
     return "\(prefix)+-o \(node.role)  <class \(node.className), ONo " +
-      String(format: "0x%x", node.oNo) + ">\(error)"
+      node.oNo.hexDescription + ">\(error)"
   }
 
   func draw(_ members: [ObjectTreeNode], prefix: String) -> [String] {
