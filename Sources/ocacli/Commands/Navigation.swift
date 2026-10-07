@@ -151,14 +151,11 @@ struct Resolve: REPLCommand {
   static let summary = "Resolves an object number to a name"
 
   @REPLCommandArgument
-  var oNoString: String!
+  var oNo: OcaONo!
 
   init() {}
 
   func execute(with context: Context) async throws {
-    guard let oNoString, let oNo = OcaONo(oNoString: oNoString) else {
-      throw Ocp1Error.status(.parameterError)
-    }
     let object = try await context.connection.resolve(objectOfUnknownClass: oNo)
     try await context
       .print(
