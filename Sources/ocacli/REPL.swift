@@ -176,6 +176,8 @@ final class REPLCommandRegistry: @unchecked Sendable {
     register(Flags.self)
     register(Get.self)
     register(GetConnectorStatus.self)
+    register(GetControlClass.self)
+    register(GetControlClasses.self)
     register(GetDatasetObjectsRecursive.self)
     register(GetDatasetSizes.self)
     register(GetGroupController.self)
