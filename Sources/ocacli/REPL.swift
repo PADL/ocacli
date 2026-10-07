@@ -299,6 +299,8 @@ final class REPLCommandRegistry: @unchecked Sendable {
         value.wrappedValue = number
       case let value as REPLCommandArgument<OcaRoot>:
         value.wrappedValue = try await context.resolve(rolePath: argumentValue)
+      case let value as REPLCommandArgument<OcaONo>:
+        value.wrappedValue = try await OcaONo(context: context, object: context.currentObject, argumentValue)
       case let value as REPLCommandArgument<URL>:
         guard let url = URL(string: argumentValue) else { throw Ocp1Error.status(.badFormat) }
         value.wrappedValue = url
@@ -392,6 +394,12 @@ extension OcaRoot: REPLStringConvertible {
   }
 }
 
+extension OcaONo: REPLStringConvertible {
+  func replString(context: Context, object: OcaRoot) async -> String {
+    oNoString
+  }
+}
+
 extension OcaObjectIdentification: REPLStringConvertible {
   func replString(context: Context, object: OcaRoot) async -> String {
     guard let _object = try? await context.connection.resolve(object: self) else {
@@ -473,6 +481,17 @@ extension Float: REPLStringInitializable {
 extension Bool: REPLStringInitializable {
   init(context: Context, object: OcaRoot, _ replString: String) async throws {
     self = NSString(string: replString).boolValue
+  }
+}
+
+extension OcaONo: REPLStringInitializable {
+  /// An object number in any form OcaONo reads, or the object a role path names.
+  init(context: Context, object: OcaRoot, _ replString: String) async throws {
+    if let oNo = OcaONo(replString) {
+      self = oNo
+    } else {
+      self = try await context.resolve(rolePath: replString).objectNumber
+    }
   }
 }
 

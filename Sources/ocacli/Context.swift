@@ -619,7 +619,8 @@ final class Context: @unchecked Sendable {
   func resolve<T: OcaRoot>(rolePath path: String) async throws -> T {
     let object: OcaRoot?
 
-    if let oNo = OcaONo(oNoString: path) {
+    // a role may be any string, so an object number is one only between angle brackets
+    if path.hasPrefix("<"), let oNo = OcaONo(path) {
       object = try await connection.resolve(objectOfUnknownClass: oNo)
     } else if path == "." {
       object = currentObject
