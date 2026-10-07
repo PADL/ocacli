@@ -18,7 +18,7 @@ let package = Package(
     .package(url: "https://github.com/PADL/AsyncLineReader", branch: "main"),
     .package(url: "https://github.com/PADL/SwiftOCA", branch: "main"),
     .package(url: "https://github.com/PADL/OcaFirmwareImageContainer", branch: "main"),
-    .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.1.7"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.0.0"),
