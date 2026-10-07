@@ -433,19 +433,9 @@ func replValue(
   {
     return caseIterableValue
   } else if let fixedIntegerType = type as? any FixedWidthInteger.Type {
-    var exactFixedIntegerValue: (any FixedWidthInteger)?
-
-    if stringValue.lowercased().hasPrefix("0x") {
-      if let fixedIntegerValue = UInt(stringValue.dropFirst(2)) {
-        exactFixedIntegerValue = fixedIntegerType.init(exactly: fixedIntegerValue)
-      }
-    } else {
-      if let fixedIntegerValue = Int(stringValue) {
-        exactFixedIntegerValue = fixedIntegerType.init(exactly: fixedIntegerValue)
-      }
-    }
-
-    if let exactFixedIntegerValue { return exactFixedIntegerValue }
+    let isHex = stringValue.lowercased().hasPrefix("0x")
+    let digits = isHex ? stringValue.dropFirst(2) : Substring(stringValue)
+    if let value = fixedIntegerType.init(digits, radix: isHex ? 16 : 10) { return value }
   }
   throw Ocp1Error.status(.badFormat)
 }
