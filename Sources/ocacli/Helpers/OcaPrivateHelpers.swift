@@ -98,7 +98,7 @@ extension OcaRoot {
     keyPath: AnyKeyPath
   ) async throws -> String? {
     if String(describing: keyPath) == "\\OcaRoot._objectNumber" {
-      return objectNumber.hexDescription
+      return objectNumber.oNoString
     }
     let subject = self[keyPath: keyPath] as! any OcaPropertySubjectRepresentable
 
