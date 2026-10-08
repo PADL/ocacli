@@ -15,7 +15,7 @@
 //
 
 import Foundation
-import SwiftOCA
+@_spi(SwiftOCAPrivate) import SwiftOCA
 
 private extension OcaClassDescriptor {
   // the class ID's fields, to order classes by
@@ -51,7 +51,7 @@ struct GetControlClasses: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpe
   func execute(with context: Context) async throws {
     let classManager = context.currentObject as! OcaClassManager
     // the class manager promises no order
-    for descriptor in try await classManager.getControlClasses().sorted(by: { $0.fields.lexicographicallyPrecedes($1.fields) }) {
+    for descriptor in try await classManager.$controlClasses._getValue(classManager, flags: []).sorted(by: { $0.fields.lexicographicallyPrecedes($1.fields) }) {
       context.print(descriptor.summary)
     }
   }
