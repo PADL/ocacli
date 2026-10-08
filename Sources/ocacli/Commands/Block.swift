@@ -88,13 +88,13 @@ struct AddSignalPath: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecifi
     else { throw Ocp1Error.status(.parameterOutOfRange) }
     let sourcePort = OcaPort(
       owner: source.objectNumber,
-      id: OcaPortID(mode: .output, index: sourceID),
-      name: ""
+      id: OcaPortID(direction: .output, index: sourceID),
+      role: ""
     )
     let sinkPort = OcaPort(
       owner: sink.objectNumber,
-      id: OcaPortID(mode: .input, index: sinkID),
-      name: ""
+      id: OcaPortID(direction: .input, index: sinkID),
+      role: ""
     )
     let signalPath = OcaSignalPath(sourcePort: sourcePort, sinkPort: sinkPort)
     let id = try await block.addSignalPath(path: signalPath)
