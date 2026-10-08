@@ -38,6 +38,18 @@ private extension OcaClassDescriptor {
   }
 }
 
+private extension OcaDatatypeDescriptor {
+  var summary: String {
+    let base = baseTypeName.isEmpty ? "" : " of \(baseTypeName)"
+    let arguments = typeArguments.isEmpty ? "" : "<\(typeArguments.joined(separator: ", "))>"
+    return "\(name)\t\(kind)\(base)\(arguments)"
+  }
+
+  var lines: [String] {
+    [summary] + fields.map { "  \($0.name): \($0.typeName)" } + items.map { "  \($0.name) = \($0.value)" }
+  }
+}
+
 struct GetControlClasses: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
   static let name = ["get-control-classes", "control-classes"]
   static let summary = "List the classes of the device's objects"
@@ -92,4 +104,55 @@ struct GetControlClass: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+}
+
+struct GetDatatypes: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["get-datatypes", "datatypes"]
+  static let summary = "List the datatypes the device's classes refer to"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaClassManager.classIdentification]
+  }
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let classManager = context.currentObject as! OcaClassManager
+    // the class manager promises no order
+    for descriptor in try await classManager.$datatypes._getValue(classManager, flags: []).sorted(by: { $0.name < $1.name }) {
+      context.print(descriptor.summary)
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+}
+
+struct GetDatatype: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["get-datatype", "datatype"]
+  static let summary = "Describe a datatype the device's classes refer to: <name>"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaClassManager.classIdentification]
+  }
+
+  @REPLCommandArgument
+  var name: String!
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let classManager = context.currentObject as! OcaClassManager
+    for line in try await classManager.getDatatype(name: name).lines {
+      context.print(line)
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    guard let classManager = await context.currentObject as? OcaClassManager,
+          let datatypes = try? await classManager.$datatypes._getValue(
+            classManager, flags: context.contextFlags.cachedPropertyResolutionFlags
+          )
+    else { return nil }
+    return datatypes.map(\.name).filter { $0.hasPrefix(currentBuffer) }.sorted()
+  }
 }
