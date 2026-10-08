@@ -30,9 +30,8 @@ private extension OcaClassDescriptor {
       "  \($0.propertyID)\t\($0.name): \($0.typeName)\($0.isReadOnly ? " (read only)" : "")"
     }
     let methods = methods.map {
-      let parameters = $0.parameters.map { "\($0.name): \($0.typeName)" }.joined(separator: ", ")
-      let result = $0.resultTypeName.isEmpty ? "" : " -> \($0.resultTypeName)"
-      return "  \($0.methodID)\t\($0.name)(\(parameters))\(result)"
+      let parameters = $0.parameters.map { "\($0.direction) \($0.name): \($0.typeName)" }.joined(separator: ", ")
+      return "  \($0.methodID)\t\($0.name)(\(parameters))"
     }
     return [summary] + (properties.isEmpty ? [] : [" properties:"] + properties) +
       (methods.isEmpty ? [] : [" methods:"] + methods)
