@@ -97,7 +97,7 @@ struct DeleteMember: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecific
 
   func execute(with context: Context) async throws {
     let group = context.currentObject as! OcaGroup
-    try await group.deleteMember(member: member.objectNumber)
+    try await group.removeMember(member: member.objectNumber)
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
