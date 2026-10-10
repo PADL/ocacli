@@ -180,6 +180,8 @@ final class REPLCommandRegistry: @unchecked Sendable {
     register(GetControlClasses.self)
     register(GetDatatype.self)
     register(GetDatatypes.self)
+    register(GetModelURL.self)
+    register(GetModel.self)
     register(GetDatasetObjectsRecursive.self)
     register(GetDatasetSizes.self)
     register(GetGroupController.self)

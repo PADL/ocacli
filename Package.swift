@@ -31,6 +31,7 @@ let package = Package(
         "AsyncLineReader",
         "SwiftOCA",
         .product(name: "SwiftOCASecure", package: "SwiftOCA"),
+        .product(name: "SwiftOCAXMI", package: "SwiftOCA"),
         "OcaFirmwareImageContainer",
         .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
         .product(name: "Algorithms", package: "swift-algorithms"),

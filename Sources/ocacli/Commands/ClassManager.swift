@@ -15,7 +15,11 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @_spi(SwiftOCAPrivate) import SwiftOCA
+import SwiftOCAXMI
 
 private extension OcaClassDescriptor {
   // the class ID's fields, to order classes by
@@ -155,4 +159,91 @@ struct GetDatatype: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificC
     else { return nil }
     return datatypes.map(\.name).filter { $0.hasPrefix(currentBuffer) }.sorted()
   }
+}
+
+private enum ModelError: Error, CustomStringConvertible, LocalizedError {
+  case notServed
+  case httpStatus(Int)
+
+  var description: String {
+    switch self {
+    case .notServed: "the device isn't serving its model"
+    case let .httpStatus(status): "fetching the model failed with HTTP status \(status)"
+    }
+  }
+
+  var errorDescription: String? { description }
+}
+
+private extension OcaClassManager {
+  /// The URL the device serves its model at, or nil when it serves none.
+  func modelURL() async throws -> URL? {
+    let modelURL = try await $modelURL._getValue(self, flags: [])
+    guard !modelURL.isEmpty, let url = URL(string: modelURL) else { return nil }
+    return url
+  }
+}
+
+struct GetModelURL: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["get-model-url", "model-url"]
+  static let summary = "Show where the device serves its class model as XMI"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaClassManager.classIdentification]
+  }
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let classManager = context.currentObject as! OcaClassManager
+    if let url = try await classManager.modelURL() {
+      context.print(url.absoluteString)
+    } else {
+      context.print(ModelError.notServed)
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
+}
+
+struct GetModel: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+  REPLClassSpecificCommand
+{
+  static let name = ["get-model", "model"]
+  static let summary = "Fetch the device's class model as XMI, to a file or standard output: [path]"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaClassManager.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 0 }
+
+  @REPLCommandArgument
+  var path: String?
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let classManager = context.currentObject as! OcaClassManager
+    guard let url = try await classManager.modelURL() else { throw ModelError.notServed }
+    let (data, response) = try await URLSession.shared.data(from: url)
+    if let response = response as? HTTPURLResponse, response.statusCode != 200 {
+      throw ModelError.httpStatus(response.statusCode)
+    }
+    if let path {
+      try data.write(to: URL(fileURLWithPath: path))
+    } else {
+      context.print(String(decoding: data, as: UTF8.self))
+    }
+    let model = try OcaXMIModel(data: data)
+    let summary = "\(model.classes.count) classes, \(model.datatypes.count) datatypes"
+    if path != nil {
+      context.print(summary)
+    } else {
+      // the document has standard output, so the summary goes beside it
+      FileHandle.standardError.write(Data((summary + "\n").utf8))
+    }
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? { nil }
 }
