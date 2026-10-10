@@ -193,13 +193,122 @@ struct GetEndpointCounters: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
     let counterSet = try await application.getEndpointCounterSet(endpointID: OcaMediaStreamEndpointID(id))
-    for counter in counterSet.counter {
-      context.print("\(counter.id)\t\(counter.role)\t\(counter.value)")
+    for line in counterSet.replLines {
+      context.print(line)
     }
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     await (context.currentObject as? OcaMediaTransportApplication)?.endpointCompletions()
+  }
+}
+
+struct AttachEndpointCounterNotifier: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["attach-endpoint-counter-notifier"]
+  static let summary = "Attach a counter notifier to an endpoint's counter: <endpoint ID> <counter ID> <notifier>"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportApplication.classIdentification]
+  }
+
+  @REPLCommandArgument
+  var id: Int!
+
+  @REPLCommandArgument
+  var counterID: Int!
+
+  @REPLCommandArgument
+  var notifier: OcaONo!
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let application = context.currentObject as! OcaMediaTransportApplication
+    try await application.attachEndpointCounterNotifier(
+      endpointID: OcaMediaStreamEndpointID(id),
+      counterID: parseCounterID(counterID),
+      notifierONo: notifier
+    )
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    switch replArgumentIndex(currentBuffer) {
+    case 0: await (context.currentObject as? OcaMediaTransportApplication)?.endpointCompletions()
+    case 2: await context.resolveCompletions(forPartialRolePath: currentBuffer.replFinalWord)
+    default: nil
+    }
+  }
+}
+
+struct DetachEndpointCounterNotifier: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["detach-endpoint-counter-notifier"]
+  static let summary = "Detach a counter notifier from an endpoint's counter: <endpoint ID> <counter ID> <notifier>"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportApplication.classIdentification]
+  }
+
+  @REPLCommandArgument
+  var id: Int!
+
+  @REPLCommandArgument
+  var counterID: Int!
+
+  @REPLCommandArgument
+  var notifier: OcaONo!
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let application = context.currentObject as! OcaMediaTransportApplication
+    try await application.detachEndpointCounterNotifier(
+      endpointID: OcaMediaStreamEndpointID(id),
+      counterID: parseCounterID(counterID),
+      notifierONo: notifier
+    )
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    switch replArgumentIndex(currentBuffer) {
+    case 0: await (context.currentObject as? OcaMediaTransportApplication)?.endpointCompletions()
+    case 2: await context.resolveCompletions(forPartialRolePath: currentBuffer.replFinalWord)
+    default: nil
+    }
+  }
+}
+
+struct ResetEndpointCounters: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+  REPLClassSpecificCommand
+{
+  static let name = ["reset-endpoint-counters"]
+  static let summary = "Reset endpoint counters, 0 meaning every endpoint: <endpoint ID|0> [counter ID]"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportApplication.classIdentification]
+  }
+
+  var minimumRequiredArguments: Int { 1 }
+
+  @REPLCommandArgument
+  var id: Int!
+
+  @REPLCommandArgument
+  var counterID: Int?
+
+  init() {}
+
+  func execute(with context: Context) async throws {
+    let application = context.currentObject as! OcaMediaTransportApplication
+    // a counter ID of zero resets the whole set
+    try await application.resetEndpointCounterSet(
+      endpointID: OcaMediaStreamEndpointID(id),
+      counterID: counterID.map(parseCounterID) ?? 0
+    )
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    guard replArgumentIndex(currentBuffer) == 0 else { return nil }
+    return await (context.currentObject as? OcaMediaTransportApplication)?.endpointCompletions()
   }
 }
 
