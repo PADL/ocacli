@@ -193,7 +193,7 @@ struct GetEndpointCounters: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
     let counterSet = try await application.getEndpointCounterSet(endpointID: OcaMediaStreamEndpointID(id))
-    for line in counterSet.replLines {
+    for line in await CounterSetDescriber(context: context).describe(counterSet) {
       context.print(line)
     }
   }

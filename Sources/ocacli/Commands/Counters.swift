@@ -19,30 +19,53 @@ import Foundation
 
 // AES70-2024 counter set and counter notifier commands.
 
-/// A counter set ID, decoded where it has one of the standard layouts.
-func counterSetIDDescription(_ id: OcaCounterSetID) -> String {
-  if let decoded = try? OcaMediaStreamEndpointCounterSetID(blob: id), (try? decoded.blob) == id {
-    return "owner=\(decoded.ownerONo.oNoString),endpoint=\(decoded.endpointID)"
-  }
-  if let decoded = try? OcaPropertyCounterSetID(blob: id), (try? decoded.blob) == id {
-    return "owner=\(decoded.ownerONo.oNoString),property=\(decoded.propertyID)"
-  }
-  return id.isEmpty ? "none" : "0x\(Data(id).hexString)"
-}
+/// Describes counter sets and updates, naming objects by role path; it asks the device once
+/// per object, and an object it cannot resolve keeps its object number.
+actor CounterSetDescriber {
+  private let context: Context
+  private var objects = [OcaONo: (path: String, object: OcaRoot?)]()
 
-extension OcaCounterSet {
-  var replLines: [String] {
-    ["counter set \(counterSetIDDescription(id))"] + counter.map { counter in
-      let notifiers = counter.notifiers.isEmpty ? "none" : counter.notifiers.map(\.oNoString)
-        .joined(separator: ",")
-      return "\(counter.id)\t\(counter.role)\tvalue=\(counter.value)\tinitial=\(counter.initialValue)\tnotifiers=\(notifiers)"
+  init(context: Context) {
+    self.context = context
+  }
+
+  private func object(_ oNo: OcaONo) async -> (path: String, object: OcaRoot?) {
+    if let object = objects[oNo] { return object }
+    let object = try? await context.connection.resolve(objectOfUnknownClass: oNo)
+    let path = await (try? object?.getRolePathString(
+      flags: context.contextFlags.cachedPropertyResolutionFlags
+    )) ?? oNo.oNoString
+    objects[oNo] = (path, object)
+    return (path, object)
+  }
+
+  func describe(_ id: OcaCounterSetID) async -> String {
+    if let decoded = try? OcaMediaStreamEndpointCounterSetID(blob: id), (try? decoded.blob) == id {
+      return "owner=\(await object(decoded.ownerONo).path),endpoint=\(decoded.endpointID)"
     }
+    if let decoded = try? OcaPropertyCounterSetID(blob: id), (try? decoded.blob) == id {
+      let owner = await object(decoded.ownerONo)
+      let property = owner.object?.propertyName(for: decoded.propertyID) ?? "\(decoded.propertyID)"
+      return "owner=\(owner.path),property=\(property)"
+    }
+    return id.isEmpty ? "none" : "0x\(Data(id).hexString)"
   }
-}
 
-extension OcaCounterUpdate {
-  var replLine: String {
-    "\(counterSetIDDescription(counterSetID))\t\(counterID)\t\(value)"
+  func describe(_ counterSet: OcaCounterSet) async -> [String] {
+    var lines = await ["counter set \(describe(counterSet.id))"]
+    for counter in counterSet.counter {
+      var notifiers = [String]()
+      for oNo in counter.notifiers { await notifiers.append(object(oNo).path) }
+      let notifierList = notifiers.isEmpty ? "none" : notifiers.joined(separator: ",")
+      lines.append(
+        "\(counter.id)\t\(counter.role)\tvalue=\(counter.value)\tinitial=\(counter.initialValue)\tnotifiers=\(notifierList)"
+      )
+    }
+    return lines
+  }
+
+  func describe(_ update: OcaCounterUpdate) async -> String {
+    await "\(describe(update.counterSetID))\tcounter=\(update.counterID)\tvalue=\(update.value)"
   }
 }
 
@@ -133,7 +156,8 @@ struct GetCounters: REPLCommand, REPLClassSpecificCommand {
   init() {}
 
   func execute(with context: Context) async throws {
-    for line in try await context.counterSetOwner.getCounterSet().replLines {
+    let counterSet = try await context.counterSetOwner.getCounterSet()
+    for line in await CounterSetDescriber(context: context).describe(counterSet) {
       context.print(line)
     }
   }
@@ -360,7 +384,7 @@ struct SetCounterFilter: REPLCommand, REPLOptionalArguments, REPLClassSpecificCo
 
 struct GetLastUpdate: REPLCommand, REPLClassSpecificCommand {
   static let name = ["get-last-update"]
-  static let summary = "Show a counter notifier's last update: <set ID> <counter ID> <value>"
+  static let summary = "Show a counter notifier's last update"
 
   static var supportedClasses: [OcaClassIdentification] {
     [OcaCounterNotifier.classIdentification]
@@ -370,8 +394,9 @@ struct GetLastUpdate: REPLCommand, REPLClassSpecificCommand {
 
   func execute(with context: Context) async throws {
     let notifier = context.currentObject as! OcaCounterNotifier
+    let describer = CounterSetDescriber(context: context)
     for update in try await notifier.getLastUpdate() {
-      context.print(update.replLine)
+      await context.print(describer.describe(update))
     }
   }
 
@@ -402,13 +427,14 @@ struct WatchCounters: REPLCommand, REPLOptionalArguments, REPLClassSpecificComma
   func execute(with context: Context) async throws {
     let notifier = context.currentObject as! OcaCounterNotifier
     let event = OcaEvent(emitterONo: notifier.objectNumber, eventID: OcaCounterNotifier.counterUpdateEventID)
+    let describer = CounterSetDescriber(context: context)
     let cancellable = try await context.connection.addSubscription(
       label: "com.padl.ocacli.watch-counters",
       event: event
     ) { _, data in
       let eventData = try Ocp1Decoder().decode(OcaCounterUpdateEventData.self, from: data)
       for update in eventData.updates {
-        context.print(update.replLine)
+        await context.print(describer.describe(update))
       }
     }
 
