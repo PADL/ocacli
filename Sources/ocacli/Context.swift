@@ -407,6 +407,8 @@ final class Context: @unchecked Sendable {
   // the following variables can be read by the command source (the event loop)
   private(set) var currentObject: OcaRoot
   private var currentObjectPath: OcaNamePath? = [""]
+  /// What the current object is called when it has no role path, such as `[DeviceManager]`
+  private var currentObjectPathString: String?
   fileprivate var sparseRolePathCache: [OcaNamePath: OcaRoot] = [:]
 
   init(
@@ -622,6 +624,11 @@ final class Context: @unchecked Sendable {
     // a role may be any string, so an object number is one only between angle brackets
     if path.hasPrefix("<"), let oNo = OcaONo(path) {
       object = try await connection.resolve(objectOfUnknownClass: oNo)
+    } else if let role = path.orphanRole, let manager = try? await resolve(managerRole: role) {
+      // likewise an object without an owner only between square brackets, which can be
+      // found by role only if it is a manager; a block member with such a role
+      // can still be reached with ./[Role]
+      object = manager
     } else if path == "." {
       object = currentObject
     } else if path == ".." {
@@ -654,6 +661,40 @@ final class Context: @unchecked Sendable {
     guard let object = object as? T else {
       throw Ocp1Error.objectClassMismatch
     }
+    return object
+  }
+
+  /// Returns the roles of the managers, which is how a manager is found by name, since it is
+  /// not in the block tree. They are those the device manager lists, together with the device
+  /// manager itself, which it need not list.
+  private func getManagerDescriptors() async throws -> [OcaManagerDescriptor] {
+    let deviceManager = await connection.deviceManager
+    return try await deviceManager.$managers.getValue(
+      deviceManager,
+      flags: contextFlags.cachedPropertyResolutionFlags
+    ) { $0 }
+  }
+
+  private func getManagerRoles() async throws -> [String] {
+    let deviceManager = await connection.deviceManager
+    let descriptors = try await getManagerDescriptors()
+    let deviceManagerRole = try await deviceManager.getRole()
+    return [deviceManagerRole] + descriptors.map(\.name).filter { $0 != deviceManagerRole }
+  }
+
+  private func resolve(managerRole role: String) async throws -> OcaRoot? {
+    let deviceManager = await connection.deviceManager
+    if try await deviceManager.getRole() == role { return deviceManager }
+
+    guard let descriptor = try await getManagerDescriptors().first(where: { $0.name == role }) else { return nil }
+    let object = try await connection.resolve(object: OcaObjectIdentification(
+      oNo: descriptor.objectNumber,
+      classIdentification: OcaClassIdentification(
+        classID: descriptor.classID,
+        classVersion: descriptor.classVersion
+      )
+    ))
+    object.cacheRole(role)
     return object
   }
 
@@ -762,6 +803,11 @@ final class Context: @unchecked Sendable {
   ///
   /// This may query the device: the line editor awaits it rather than blocking on it.
   func resolveCompletions(forPartialRolePath path: String) async -> [String]? {
+    if path.first == ocaOrphanPathPrefix {
+      guard let roles = try? await getManagerRoles() else { return nil }
+      return roles.map(\.orphanPathString).filter { $0.hasPrefix(path) }.sorted()
+    }
+
     let container: String
     let partialRole: String
 
@@ -817,10 +863,12 @@ final class Context: @unchecked Sendable {
     do {
       currentObjectPath = try await object
         .getRolePath(flags: contextFlags.cachedPropertyResolutionFlags)
+      currentObjectPathString = nil
     } catch Ocp1Error.objectClassMismatch {
-      let rolePathString = try await object
+      // not in the block tree, so not a path that others can be resolved relative to
+      currentObjectPath = nil
+      currentObjectPathString = try await object
         .getRolePathString(flags: contextFlags.cachedPropertyResolutionFlags)
-      currentObjectPath = [rolePathString]
     }
     currentObject = object
   }
@@ -829,7 +877,7 @@ final class Context: @unchecked Sendable {
     if let currentObjectPath {
       currentObjectPath.pathString
     } else {
-      currentObject.objectNumber.oNoString
+      currentObjectPathString ?? currentObject.objectNumber.oNoString
     }
   }
 

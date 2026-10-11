@@ -61,11 +61,15 @@ extension OcaRoot {
     }
   }
 
+  /// Returns the role path of the object if it is in the block tree. An object without an
+  /// owner, such as a manager, is not, so it is named by its role between square brackets, as
+  /// Unix names kernel objects that have no path (`[heap]`, `socket:[1234]`); anything else is
+  /// named by its object number.
   func getRolePathString(flags: OcaPropertyResolutionFlags) async throws -> String {
     if let rolePathString = try? await getRolePath(flags: flags).pathString {
       rolePathString
     } else if await (try? isOrphan(flags: flags)) ?? false {
-      try await getRole()
+      try await getRole().orphanPathString
     } else {
       objectNumber.oNoString
     }

@@ -283,7 +283,24 @@ extension [String] {
   }
 }
 
+let ocaOrphanPathPrefix: Character = "["
+let ocaOrphanPathSuffix: Character = "]"
+
 extension String {
+  /// The name of an object without an owner, which is not in the block tree, so has no
+  /// role path.
+  var orphanPathString: String {
+    String(ocaOrphanPathPrefix) + self + String(ocaOrphanPathSuffix)
+  }
+
+  /// The role of the object named by `[Role]`, or nil if this does not have that form.
+  var orphanRole: String? {
+    guard count > 2, first == ocaOrphanPathPrefix, last == ocaOrphanPathSuffix else {
+      return nil
+    }
+    return String(dropFirst().dropLast())
+  }
+
   /// Splits a role path into its components and a flag indicating whether it is absolute.
   /// Empty components are elided, so that leading, trailing and repeated separators are all
   /// tolerated (`/Foo/Bar/` resolves the same object as `/Foo/Bar`).
