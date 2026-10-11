@@ -29,12 +29,12 @@ actor CounterSetDescriber {
     self.context = context
   }
 
+  /// Resolves once; a failure, as a reconnecting watch has, is tried again at the next sight.
   private func object(_ oNo: OcaONo) async -> (path: String, object: OcaRoot?) {
     if let object = objects[oNo] { return object }
-    let object = try? await context.connection.resolve(objectOfUnknownClass: oNo)
-    let path = await (try? object?.getRolePathString(
-      flags: context.contextFlags.cachedPropertyResolutionFlags
-    )) ?? oNo.oNoString
+    guard let object = try? await context.connection.resolve(objectOfUnknownClass: oNo),
+          let path = try? await object.getRolePathString(flags: context.contextFlags.cachedPropertyResolutionFlags)
+    else { return (oNo.oNoString, nil) }
     objects[oNo] = (path, object)
     return (path, object)
   }
@@ -246,8 +246,10 @@ struct ResetCounters: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComple
     try await context.counterSetOwner.resetCounters(counterID: counterID.map(parseCounterID))
   }
 
+  // only the agent resets one counter; the interface and application reset their whole set
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
-    await counterIDCompletions(with: context)
+    guard context.currentObject is OcaCounterSetAgent else { return nil }
+    return await counterIDCompletions(with: context)
   }
 }
 
@@ -414,7 +416,7 @@ struct WatchCounters: REPLCommand, REPLOptionalArguments, REPLClassSpecificComma
     [OcaCounterNotifier.classIdentification]
   }
 
-  /// Without a terminal there is no escape key, so an untimed watch ends after this long.
+  /// Without a terminal to press escape at, an untimed watch ends after this long.
   private static let defaultNonInteractiveDuration = 10.0
 
   var minimumRequiredArguments: Int { 0 }
@@ -432,13 +434,22 @@ struct WatchCounters: REPLCommand, REPLOptionalArguments, REPLClassSpecificComma
       label: "com.padl.ocacli.watch-counters",
       event: event
     ) { _, data in
-      let eventData = try Ocp1Decoder().decode(OcaCounterUpdateEventData.self, from: data)
-      for update in eventData.updates {
-        await context.print(describer.describe(update))
+      // the connection delivers the data in its own protocol's format; a failure is said, not lost
+      do {
+        let eventData = try OcaEventDataCoding.decode(
+          OcaCounterUpdateEventData.self,
+          from: data,
+          format: context.connection.controlProtocol.parameterFormat
+        )
+        for update in eventData.updates {
+          await context.print(describer.describe(update))
+        }
+      } catch {
+        await context.print("watch-counters: \(error)")
       }
     }
 
-    let duration = seconds ?? (context.lineReader == nil ? Self.defaultNonInteractiveDuration : nil)
+    let duration = seconds ?? (isatty(STDIN_FILENO) != 0 ? nil : Self.defaultNonInteractiveDuration)
     do {
       try await context.withInterruption {
         if let duration {
