@@ -445,7 +445,7 @@ struct WatchCounters: REPLCommand, REPLOptionalArguments, REPLClassSpecificComma
           await context.print(describer.describe(update))
         }
       } catch {
-        await context.print("watch-counters: \(error)")
+        context.print("watch-counters: \(error)")
       }
     }
 

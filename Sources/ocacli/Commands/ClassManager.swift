@@ -152,7 +152,7 @@ struct GetDatatype: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificC
   }
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
-    guard let classManager = await context.currentObject as? OcaClassManager,
+    guard let classManager = context.currentObject as? OcaClassManager,
           let datatypes = try? await classManager.$datatypes._getValue(
             classManager, flags: context.contextFlags.cachedPropertyResolutionFlags
           )
