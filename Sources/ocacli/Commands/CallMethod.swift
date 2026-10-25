@@ -19,8 +19,7 @@ import Foundation
 
 struct CallMethod: REPLCommand, REPLOptionalArguments {
   static let name = ["call-method"]
-  static let summary =
-    "Call a method on the current object: <methodID> [--parameter-count N] [parameter ...]"
+  static let summary = "Call a method on the current object: <methodID> [parameter ...]"
 
   var minimumRequiredArguments: Int { 1 }
 
@@ -28,8 +27,7 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
   var methodID: String!
 
   /// OCP.1: one hex argument per parameter, without a count byte (`0x03`, not `0x0103`); the
-  /// parameter count is the number of arguments, or `--parameter-count N` when one argument
-  /// holds N parameters already concatenated. OCP.2: a single `Parameters` object
+  /// parameter count is the number of arguments. OCP.2: a single `Parameters` object
   /// (`{"Value":true}`) or bare value (`true`) for a single-parameter method.
   @REPLCommandArgument
   var parameters: [String]?
@@ -61,20 +59,11 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
     methodID: OcaMethodID,
     with context: Context
   ) throws -> OcaParameters {
-    var arguments = parameters ?? []
-    var parameterCount: OcaUint8?
-
-    if arguments.first == "--parameter-count" {
-      guard arguments.count >= 2, let count = OcaUint8(arguments[1]) else {
-        throw REPLCommandRegistry.UsageError(summary: Self.summary)
-      }
-      parameterCount = count
-      arguments.removeFirst(2)
-    }
+    let arguments = parameters ?? []
 
     switch context.connection.controlProtocol {
     case .ocp1:
-      guard !arguments.isEmpty || parameterCount != nil else { return OcaParameters() }
+      guard !arguments.isEmpty else { return OcaParameters() }
       guard arguments.count <= Int(OcaUint8.max) else {
         throw REPLCommandRegistry.UsageError(summary: Self.summary)
       }
@@ -84,12 +73,12 @@ struct CallMethod: REPLCommand, REPLOptionalArguments {
         try parameterData.append(Data(fromHexEncodedString: argument))
       }
       return OcaParameters(
-        parameterCount: parameterCount ?? OcaUint8(arguments.count),
+        parameterCount: OcaUint8(arguments.count),
         parameterData: parameterData
       )
     case .ocp2:
       // OCP.2 parameters are named, so they all go in one JSON object
-      guard parameterCount == nil, arguments.count <= 1 else {
+      guard arguments.count <= 1 else {
         throw REPLCommandRegistry.UsageError(
           summary: "\(Self.summary) (OCP.2 takes one Parameters object or bare value)"
         )
