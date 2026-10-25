@@ -325,6 +325,11 @@ final class REPLCommandRegistry: @unchecked Sendable {
         value.wrappedValue = try Data(fromHexEncodedString: argumentValue)
       case let value as REPLCommandArgument<[UInt8]>:
         value.wrappedValue = try [UInt8](fromHexEncodedString: argumentValue)
+      case let value as REPLCommandArgument<[String]>:
+        // a trailing list argument takes the rest of the line
+        value.wrappedValue = Array(arguments[argumentIndex...])
+        argumentIndex = arguments.count
+        continue
       default:
         throw Ocp1Error.status(.parameterError)
       }
