@@ -78,3 +78,34 @@ portClockMap: [:]
 ports: []
 role: Gain
 ```
+
+Calling methods
+---------------
+
+`call-method` sends an arbitrary method to the current object and prints any response
+parameters:
+
+```
+call-method <methodID> [--parameter-count N] [parameter ...]
+```
+
+Over OCP.1 each parameter is one hex argument holding that parameter's encoding, without a
+count byte (`0x03`, not `0x0103`). The parameter count sent is the number of arguments, and
+the parameters' bytes are concatenated in order:
+
+```bash
+/Block/Gain> call-method 4.2 0xc1c26666
+/Router> call-method 3.13 0x00010000 0x02 0x0006 0x00000030 0x00017700
+```
+
+The second line sends a parameter count of 5. When a single argument already holds several
+parameters concatenated, give the count with `--parameter-count`, which overrides the
+number of arguments:
+
+```bash
+/Router> call-method 3.13 --parameter-count 5 0x000100000200060000003000017700
+```
+
+Over OCP.2 (`-2`) parameters are named, so `call-method` takes one argument: a `Parameters`
+object (`{"Value":true}`), or a bare value (`true`) for a single-parameter method.
+`--parameter-count` and several parameter arguments are refused.
