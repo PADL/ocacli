@@ -455,14 +455,20 @@ struct SetStreamingEnabled: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
 
 /// Connects an input endpoint, found by label or ID, to a remote endpoint: through the
 /// session agent for stream-based adaptations, through the channel endpoints for
-/// channel-based ones (AES70-23).
-struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+/// channel-based ones (AES70-23). An AES67 endpoint is configured from SDP, which leaves it
+/// Ready (AES70-21 Clause 10.2.4), then started unless `start` is false.
+struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
+  REPLClassSpecificCommand
+{
   static let name = ["connect-endpoint"]
   static let summary = "Connect an input endpoint to a remote: <endpoint label or ID> <remote endpoint ID>"
+    + " [start, AES67 only: true|false]"
 
   static var supportedClasses: [OcaClassIdentification] {
     [OcaMediaTransportApplication.classIdentification]
   }
+
+  var minimumRequiredArguments: Int { 2 }
 
   @REPLCommandArgument
   var endpoint: String!
@@ -470,11 +476,19 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
   @REPLCommandArgument
   var remote: String!
 
+  @REPLCommandArgument
+  var start: Bool!
+
   init() {}
 
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
     let target = try await application.inputEndpoint(endpoint)
+    let start = start ?? true
+    guard start || application is Aes67OcaMediaTransportApplication else {
+      // only AES70-21 configures an endpoint without starting it
+      throw REPLCommandRegistry.UsageError(summary: Self.summary)
+    }
     if let application = application as? DanteOcaMediaTransportApplication {
       let id = try await application.channelEndpointID(for: target)
       try await application.subscribe(channelEndpoint: id, to: remote)
@@ -485,7 +499,13 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
       // AES70-21 connects by SDP: given verbatim, or looked up by name in the registry
       let sdp = remote.hasPrefix("v=0") ? remote! : try await application.registeredSDP(named: remote, with: context)
       try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: sdp)
-      context.print("configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP")
+      let configured = "configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP"
+      guard start else {
+        context.print("\(configured), Ready, not started")
+        return
+      }
+      try await application.applyEndpointCommand(endpointID: target.idInternal, command: .start)
+      context.print("\(configured) and started it")
       return
     }
     let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
@@ -504,6 +524,7 @@ struct ConnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpeci
     switch replArgumentIndex(currentBuffer) {
     case 0: return await application.inputEndpointCompletions()
     case 1: return await (application as? Aes67OcaMediaTransportApplication)?.registeredSourceNames(with: context)
+    case 2: return application is Aes67OcaMediaTransportApplication ? ["true", "false"] : nil
     default: return nil
     }
   }
@@ -530,6 +551,7 @@ struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
       return
     }
     if let application = application as? Aes67OcaMediaTransportApplication {
+      // an empty SDP closes the connection: NotReady (AES70-21 Clause 10.2.4)
       try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: "")
       return
     }
