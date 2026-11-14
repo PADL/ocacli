@@ -212,6 +212,7 @@ final class REPLCommandRegistry: @unchecked Sendable {
     register(SetStreamingEnabled.self)
     register(ConnectEndpoint.self)
     register(DisconnectEndpoint.self)
+    register(ApplyEndpointCommand.self)
     register(GetChannelEndpoints.self)
     register(GetRegistry.self)
     register(GetRegistryEntry.self)

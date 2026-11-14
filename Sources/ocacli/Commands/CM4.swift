@@ -56,22 +56,32 @@ private extension OcaMediaTransportApplication {
     return endpoints.map { String($0.idInternal) }
   }
 
-  /// Input endpoint labels and IDs, for the connect and disconnect commands.
-  func inputEndpointCompletions() async -> [String]? {
+  /// Endpoint labels and IDs, of input endpoints only when `inputsOnly`.
+  func endpointLabelCompletions(inputsOnly: Bool = false) async -> [String]? {
     guard let endpoints = try? await $endpoints._getValue(self, flags: []) else { return nil }
-    let inputs = endpoints.filter { $0.direction == .input }
-    return inputs.map(\.userLabel).filter { !$0.isEmpty } + inputs.map { String($0.idInternal) }
+    let chosen = endpoints.filter { !inputsOnly || $0.direction == .input }
+    return chosen.map(\.userLabel).filter { !$0.isEmpty } + chosen.map { String($0.idInternal) }
   }
 
-  /// The input endpoint named by label or ID.
-  func inputEndpoint(_ name: String) async throws -> OcaMediaStreamEndpoint {
+  /// Input endpoint labels and IDs, for the connect and disconnect commands.
+  func inputEndpointCompletions() async -> [String]? {
+    await endpointLabelCompletions(inputsOnly: true)
+  }
+
+  /// The endpoint named by label or ID, an input one when `inputsOnly`.
+  func endpoint(named name: String, inputsOnly: Bool = false) async throws -> OcaMediaStreamEndpoint {
     let endpoints = try await $endpoints._getValue(self, flags: [])
     guard let endpoint = endpoints.first(where: {
-      $0.direction == .input && ($0.userLabel == name || String($0.idInternal) == name)
+      (!inputsOnly || $0.direction == .input) && ($0.userLabel == name || String($0.idInternal) == name)
     }) else {
       throw Ocp1Error.status(.parameterOutOfRange)
     }
     return endpoint
+  }
+
+  /// The input endpoint named by label or ID.
+  func inputEndpoint(_ name: String) async throws -> OcaMediaStreamEndpoint {
+    try await endpoint(named: name, inputsOnly: true)
   }
 
   /// The session agent's session and connection for a local endpoint.
@@ -575,5 +585,55 @@ struct DisconnectEndpoint: REPLCommand, REPLCurrentBlockCompletable, REPLClassSp
 
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     await (context.currentObject as? OcaMediaTransportApplication)?.inputEndpointCompletions()
+  }
+}
+
+/// Applies an AES70 endpoint command (OcaMediaStreamEndpointCommand) to an endpoint of
+/// either direction, found by label or ID: `connectAndStart` starts one ConfigureEndpointFromSDP
+/// has left Ready (AES70-21 Annex D.5).
+struct ApplyEndpointCommand: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
+  static let name = ["apply-endpoint-command"]
+  static let summary = "Apply a command to an endpoint: <endpoint label or ID> <command>"
+
+  static var supportedClasses: [OcaClassIdentification] {
+    [OcaMediaTransportApplication.classIdentification]
+  }
+
+  /// The command names, as `OcaMediaStreamEndpointCommand` names its cases.
+  static var commandNames: [String] {
+    OcaMediaStreamEndpointCommand.allCases.map { String(describing: $0) }
+  }
+
+  @REPLCommandArgument
+  var endpoint: String!
+
+  @REPLCommandArgument
+  var command: String!
+
+  init() {}
+
+  /// The command `name` names, one of `commandNames`.
+  static func parseCommand(_ name: String) throws -> OcaMediaStreamEndpointCommand {
+    guard let command = OcaMediaStreamEndpointCommand.value(for: name) as? OcaMediaStreamEndpointCommand
+    else {
+      let names = commandNames.joined(separator: "|")
+      throw REPLCommandRegistry.UsageError(summary: "\(summary), <command> one of \(names)")
+    }
+    return command
+  }
+
+  func execute(with context: Context) async throws {
+    let application = context.currentObject as! OcaMediaTransportApplication
+    let endpointCommand = try Self.parseCommand(command)
+    let target = try await application.endpoint(named: endpoint)
+    try await application.applyEndpointCommand(endpointID: target.idInternal, command: endpointCommand)
+  }
+
+  static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
+    switch replArgumentIndex(currentBuffer) {
+    case 0: await (context.currentObject as? OcaMediaTransportApplication)?.endpointLabelCompletions()
+    case 1: commandNames
+    default: nil
+    }
   }
 }
