@@ -302,7 +302,8 @@ final class REPLCommandRegistry: @unchecked Sendable {
       case let value as REPLCommandArgument<String>:
         value.wrappedValue = argumentValue
       case let value as REPLCommandArgument<Bool>:
-        value.wrappedValue = NSString(string: argumentValue).boolValue
+        guard let flag = Bool(replArgument: argumentValue) else { throw Ocp1Error.status(.badFormat) }
+        value.wrappedValue = flag
       case let value as REPLCommandArgument<Int>:
         guard let number = Int(argumentValue) else { throw Ocp1Error.status(.badFormat) }
         value.wrappedValue = number
@@ -493,7 +494,18 @@ extension Float: REPLStringInitializable {
 
 extension Bool: REPLStringInitializable {
   init(context: Context, object: OcaRoot, _ replString: String) async throws {
-    self = NSString(string: replString).boolValue
+    guard let flag = Bool(replArgument: replString) else { throw Ocp1Error.status(.badFormat) }
+    self = flag
+  }
+
+  /// A Boolean argument: true, yes, on or 1, or false, no, off or 0, in any case; nil for
+  /// anything else, which a command reports rather than reading as false.
+  init?(replArgument: String) {
+    switch replArgument.lowercased() {
+    case "true", "yes", "on", "1": self = true
+    case "false", "no", "off", "0": self = false
+    default: return nil
+    }
   }
 }
 

@@ -496,7 +496,7 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
   var remote: String!
 
   @REPLCommandArgument
-  var start: String!
+  var start: Bool! = true
 
   @REPLCommandArgument
   var mediaIDType: String!
@@ -505,15 +505,6 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
   var mediaID: String!
 
   init() {}
-
-  /// Reads the `start` argument: `true` or `false` only, `true` when absent.
-  static func parseStart(_ argument: String?) throws -> Bool {
-    switch argument {
-    case nil, "true": true
-    case "false": false
-    default: throw REPLCommandRegistry.UsageError(summary: summary)
-    }
-  }
 
   /// Reads the trailing media ID arguments, which only a verbatim SDP may have: both or
   /// neither, the type named as `Aes67MediaIDType` names its cases.
@@ -533,7 +524,7 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
 
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
-    let start = try Self.parseStart(start)
+    let start = start ?? true
     let media = try Self.parseMediaID(type: mediaIDType, id: mediaID, remote: remote)
     guard application is Aes67OcaMediaTransportApplication || (start && media == nil) else {
       // only AES70-21 configures an endpoint from SDP without starting it

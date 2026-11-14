@@ -31,14 +31,21 @@ final class CM4ArgumentTests: XCTestCase {
     }
   }
 
-  func testStartIsTrueOrFalseOnly() throws {
-    XCTAssertTrue(try ConnectEndpoint.parseStart(nil))
-    XCTAssertTrue(try ConnectEndpoint.parseStart("true"))
-    XCTAssertFalse(try ConnectEndpoint.parseStart("false"))
-    // NSString.boolValue would read these as false
-    for argument in ["start", "on", "yes", "1", "TRUE", ""] {
-      assertUsageError { try ConnectEndpoint.parseStart(argument) }
+  func testABooleanArgumentIsOneOfItsSpellingsOrRefused() {
+    for argument in ["true", "TRUE", "yes", "on", "1"] {
+      XCTAssertEqual(Bool(replArgument: argument), true, argument)
     }
+    for argument in ["false", "No", "off", "0"] {
+      XCTAssertEqual(Bool(replArgument: argument), false, argument)
+    }
+    // NSString.boolValue read these as false, silently
+    for argument in ["start", "ture", "", "2"] {
+      XCTAssertNil(Bool(replArgument: argument), argument)
+    }
+  }
+
+  func testConnectEndpointStartsUnlessToldNotTo() {
+    XCTAssertEqual(ConnectEndpoint().start, true)
   }
 
   func testMediaIDArgumentsNameAnAes67MediaIDType() throws {
