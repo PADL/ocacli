@@ -41,6 +41,13 @@ let package = Package(
       ],
       swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]
     ),
+    .testTarget(
+      name: "ocacliTests",
+      dependencies: [
+        "ocacli",
+        "SwiftOCA",
+      ]
+    ),
   ],
   swiftLanguageVersions: [.v5]
 )

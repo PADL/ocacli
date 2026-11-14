@@ -469,14 +469,17 @@ struct SetStreamingEnabled: REPLCommand, REPLCurrentBlockCompletable, REPLClassS
 
 /// Connects an input endpoint, found by label or ID, to a remote endpoint: through the
 /// session agent for stream-based adaptations, through the channel endpoints for
-/// channel-based ones (AES70-23). An AES67 endpoint is configured from SDP, which leaves it
-/// Ready (AES70-21 Clause 10.2.4), then started unless `start` is false.
+/// channel-based ones (AES70-23). An AES67 endpoint is configured from SDP, a registry
+/// entry's or one given verbatim, which leaves it Ready (AES70-21 Clause 10.2.4), and then
+/// connected and started with ConnectAndStart (Annex D.5) unless `start` is false. A registry
+/// entry's name is its IDExternal, such as `<session>/<MediaID>` for one stream of several.
 struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockCompletable,
   REPLClassSpecificCommand
 {
   static let name = ["connect-endpoint"]
-  static let summary = "Connect an input endpoint to a remote: <endpoint label or ID> <remote endpoint ID>"
-    + " [start, AES67 only: true|false]"
+  static let summary = "Connect an input endpoint: <endpoint label or ID>"
+    + " <registry entry name or SDP (AES67); remote endpoint ID (other adaptations)>"
+    + " [true|false: start, AES67 only] [<media ID type> <media ID>: SDP only]"
 
   static var supportedClasses: [OcaClassIdentification] {
     [OcaMediaTransportApplication.classIdentification]
@@ -491,18 +494,50 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
   var remote: String!
 
   @REPLCommandArgument
-  var start: Bool!
+  var start: String!
+
+  @REPLCommandArgument
+  var mediaIDType: String!
+
+  @REPLCommandArgument
+  var mediaID: String!
 
   init() {}
 
+  /// Reads the `start` argument: `true` or `false` only, `true` when absent.
+  static func parseStart(_ argument: String?) throws -> Bool {
+    switch argument {
+    case nil, "true": true
+    case "false": false
+    default: throw REPLCommandRegistry.UsageError(summary: summary)
+    }
+  }
+
+  /// Reads the trailing media ID arguments, which only a verbatim SDP may have: both or
+  /// neither, the type named as `Aes67MediaIDType` names its cases.
+  static func parseMediaID(
+    type: String?,
+    id: String?,
+    remote: String
+  ) throws -> (Aes67MediaIDType, OcaString)? {
+    guard let type else { return nil }
+    guard let id, remote.hasPrefix("v=0"),
+          let mediaIDType = Aes67MediaIDType.value(for: type) as? Aes67MediaIDType
+    else {
+      throw REPLCommandRegistry.UsageError(summary: summary)
+    }
+    return (mediaIDType, id)
+  }
+
   func execute(with context: Context) async throws {
     let application = context.currentObject as! OcaMediaTransportApplication
-    let target = try await application.inputEndpoint(endpoint)
-    let start = start ?? true
-    guard start || application is Aes67OcaMediaTransportApplication else {
-      // only AES70-21 configures an endpoint without starting it
+    let start = try Self.parseStart(start)
+    let media = try Self.parseMediaID(type: mediaIDType, id: mediaID, remote: remote)
+    guard application is Aes67OcaMediaTransportApplication || (start && media == nil) else {
+      // only AES70-21 configures an endpoint from SDP without starting it
       throw REPLCommandRegistry.UsageError(summary: Self.summary)
     }
+    let target = try await application.inputEndpoint(endpoint)
     if let application = application as? DanteOcaMediaTransportApplication {
       let id = try await application.channelEndpointID(for: target)
       try await application.subscribe(channelEndpoint: id, to: remote)
@@ -510,26 +545,7 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
       return
     }
     if let application = application as? Aes67OcaMediaTransportApplication {
-      // AES70-21 connects by SDP: given verbatim, or a registry entry's, with the MediaIDType
-      // and MediaID that name its stream
-      if remote.hasPrefix("v=0") {
-        try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: remote)
-      } else {
-        let source = try await application.registeredSource(named: remote, with: context)
-        try await application.configureEndpointFromSDP(
-          endpointID: target.idInternal,
-          sdpString: source.sdpString,
-          mediaIDType: source.mediaIDType,
-          mediaID: source.mediaID
-        )
-      }
-      let configured = "configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP"
-      guard start else {
-        context.print("\(configured), Ready, not started")
-        return
-      }
-      try await application.applyEndpointCommand(endpointID: target.idInternal, command: .start)
-      context.print("\(configured) and started it")
+      try await configure(application, target: target, media: media, start: start, with: context)
       return
     }
     let adaptation = try await application.$adaptationIdentifier._getValue(application, flags: [])
@@ -543,12 +559,60 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
     context.print("connected endpoint \(target.idInternal) \"\(target.userLabel)\" (session \(session.idInternal)) to \(remote!)")
   }
 
+  /// AES70-21 connects by SDP: given verbatim, with the media ID arguments when it has several
+  /// streams, or a registry entry's, with the MediaIDType and MediaID that name its stream.
+  private func configure(
+    _ application: Aes67OcaMediaTransportApplication,
+    target: OcaMediaStreamEndpoint,
+    media: (Aes67MediaIDType, OcaString)?,
+    start: Bool,
+    with context: Context
+  ) async throws {
+    if remote.hasPrefix("v=0") {
+      try await application.configureEndpointFromSDP(
+        endpointID: target.idInternal,
+        sdpString: remote,
+        mediaIDType: media?.0 ?? .none,
+        mediaID: media?.1 ?? ""
+      )
+    } else {
+      let source = try await application.registeredSource(named: remote, with: context)
+      try await application.configureEndpointFromSDP(
+        endpointID: target.idInternal,
+        sdpString: source.sdpString,
+        mediaIDType: source.mediaIDType,
+        mediaID: source.mediaID
+      )
+    }
+    context.print("configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP, Ready")
+    guard start else { return }
+    do {
+      try await application.applyEndpointCommand(endpointID: target.idInternal, command: .connectAndStart)
+    } catch {
+      throw StartFailed(endpointID: target.idInternal, underlying: error)
+    }
+    context.print("connected and started endpoint \(target.idInternal) \"\(target.userLabel)\"")
+  }
+
+  /// A configure that succeeded followed by a start that did not.
+  struct StartFailed: Error, CustomStringConvertible, LocalizedError {
+    let endpointID: OcaMediaStreamEndpointID
+    let underlying: any Error
+    var description: String {
+      let reason = if case let Ocp1Error.status(status) = underlying { "\(status)" } else { "\(underlying)" }
+      return "endpoint \(endpointID) configured, Ready; start failed: \(reason)"
+    }
+    var errorDescription: String? { description }
+  }
+
   static func getCompletions(with context: Context, currentBuffer: String) async -> [String]? {
     guard let application = context.currentObject as? OcaMediaTransportApplication else { return nil }
+    let aes67 = application as? Aes67OcaMediaTransportApplication
     switch replArgumentIndex(currentBuffer) {
     case 0: return await application.inputEndpointCompletions()
-    case 1: return await (application as? Aes67OcaMediaTransportApplication)?.registeredSourceNames(with: context)
-    case 2: return application is Aes67OcaMediaTransportApplication ? ["true", "false"] : nil
+    case 1: return await aes67?.registeredSourceNames(with: context)
+    case 2: return aes67 != nil ? ["true", "false"] : nil
+    case 3: return aes67 != nil ? Aes67MediaIDType.allCases.map { String(describing: $0) } : nil
     default: return nil
     }
   }
