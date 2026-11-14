@@ -115,14 +115,18 @@ private extension Aes67OcaMediaTransportApplication {
     return sources.compactMap { String(bytes: $0.idExternal, encoding: .utf8) }.filter { !$0.isEmpty }
   }
 
-  func registeredSDP(named name: String, with context: Context) async throws -> String {
+  /// A registry entry with an SDP, by name; its MediaIDType and MediaID name its stream.
+  func registeredSource(
+    named name: String,
+    with context: Context
+  ) async throws -> Aes67StreamEndpointDescriptor {
     let sources = try await registeredSources(with: context)
     guard let source = sources.first(where: { String(bytes: $0.idExternal, encoding: .utf8) == name }),
           !source.sdpString.isEmpty
     else {
       throw Ocp1Error.status(.parameterOutOfRange)
     }
-    return source.sdpString
+    return source
   }
 }
 
@@ -496,9 +500,19 @@ struct ConnectEndpoint: REPLCommand, REPLOptionalArguments, REPLCurrentBlockComp
       return
     }
     if let application = application as? Aes67OcaMediaTransportApplication {
-      // AES70-21 connects by SDP: given verbatim, or looked up by name in the registry
-      let sdp = remote.hasPrefix("v=0") ? remote! : try await application.registeredSDP(named: remote, with: context)
-      try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: sdp)
+      // AES70-21 connects by SDP: given verbatim, or a registry entry's, with the MediaIDType
+      // and MediaID that name its stream
+      if remote.hasPrefix("v=0") {
+        try await application.configureEndpointFromSDP(endpointID: target.idInternal, sdpString: remote)
+      } else {
+        let source = try await application.registeredSource(named: remote, with: context)
+        try await application.configureEndpointFromSDP(
+          endpointID: target.idInternal,
+          sdpString: source.sdpString,
+          mediaIDType: source.mediaIDType,
+          mediaID: source.mediaID
+        )
+      }
       let configured = "configured endpoint \(target.idInternal) \"\(target.userLabel)\" from SDP"
       guard start else {
         context.print("\(configured), Ready, not started")

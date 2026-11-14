@@ -29,6 +29,9 @@ private extension Aes67StreamEndpointDescriptor {
     if let address = addresses.first {
       line += "\t\(address.ipAddress):\(address.port)"
     }
+    if mediaIDType != .none {
+      line += "\t\(mediaIDType) \(mediaID)"
+    }
     if let source = String(bytes: infoSource, encoding: .utf8), !source.isEmpty {
       line += "\t\(source)"
     }
@@ -92,6 +95,8 @@ struct GetRegistryEntry: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     if let data = try? entry.adaptationData.content {
       context.print("\(data)")
     }
+    // AES70-21 §10.3.1: which stream of the SDP is this entry's
+    context.print("MediaIDType: \(entry.mediaIDType)\tMediaID: \(entry.mediaID)")
     if !entry.sdpString.isEmpty {
       context.print(entry.sdpString)
     }
