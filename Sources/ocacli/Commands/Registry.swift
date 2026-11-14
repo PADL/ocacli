@@ -18,7 +18,8 @@ import Foundation
 @_spi(SwiftOCAPrivate) import SwiftOCA
 
 // AES70-21 Aes67StreamEndpointRegistry (stream source registry) commands. They bind to the
-// registry object, so they apply to any adaptation that instantiates one.
+// registry object, so they apply to any adaptation that instantiates one. An entry's name is
+// its IDExternal, such as `<session>/<MediaID>` for one stream of a multistream SDP.
 
 private extension Aes67StreamEndpointDescriptor {
   var name: String { String(bytes: idExternal, encoding: .utf8) ?? "" }
@@ -29,11 +30,11 @@ private extension Aes67StreamEndpointDescriptor {
     if let address = addresses.first {
       line += "\t\(address.ipAddress):\(address.port)"
     }
-    if mediaIDType != .none {
-      line += "\t\(mediaIDType) \(mediaID)"
-    }
     if let source = String(bytes: infoSource, encoding: .utf8), !source.isEmpty {
       line += "\t\(source)"
+    }
+    if mediaIDType != .none {
+      line += "\t\(mediaIDType) \(mediaID)"
     }
     return line
   }
@@ -77,7 +78,7 @@ struct GetRegistry: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificC
 
 struct GetRegistryEntry: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
   static let name = ["get-registry-entry", "registry-entry"]
-  static let summary = "Show a registry entry and its SDP: <session name>"
+  static let summary = "Show a registry entry and its SDP: <registry entry name>"
 
   static var supportedClasses: [OcaClassIdentification] {
     [Aes67StreamEndpointRegistry.classIdentification]
@@ -95,7 +96,7 @@ struct GetRegistryEntry: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
     if let data = try? entry.adaptationData.content {
       context.print("\(data)")
     }
-    // AES70-21 §10.3.1: which stream of the SDP is this entry's
+    // AES70-21 Clause 10.3.1: which stream of the SDP is this entry's
     context.print("MediaIDType: \(entry.mediaIDType)\tMediaID: \(entry.mediaID)")
     if !entry.sdpString.isEmpty {
       context.print(entry.sdpString)
@@ -109,7 +110,7 @@ struct GetRegistryEntry: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpec
 
 struct DeleteRegistryEntry: REPLCommand, REPLCurrentBlockCompletable, REPLClassSpecificCommand {
   static let name = ["delete-registry-entry"]
-  static let summary = "Delete a registry entry: <session name>"
+  static let summary = "Delete a registry entry: <registry entry name>"
 
   static var supportedClasses: [OcaClassIdentification] {
     [Aes67StreamEndpointRegistry.classIdentification]

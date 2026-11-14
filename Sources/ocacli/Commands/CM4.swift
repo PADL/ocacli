@@ -108,7 +108,8 @@ private extension OcaMediaTransportApplication {
 }
 
 private extension Aes67OcaMediaTransportApplication {
-  /// The SDP of a stream source registry entry, by session name.
+  /// The stream source registry's entries (AES70-21 Clause 10.3), each named by its
+  /// IDExternal.
   func registeredSources(with context: Context) async throws -> [Aes67StreamEndpointDescriptor] {
     let registryONo = try await $streamSourceRegistryONo._getValue(self, flags: [])
     guard registryONo != OcaInvalidONo,
@@ -125,7 +126,8 @@ private extension Aes67OcaMediaTransportApplication {
     return sources.compactMap { String(bytes: $0.idExternal, encoding: .utf8) }.filter { !$0.isEmpty }
   }
 
-  /// A registry entry with an SDP, by name; its MediaIDType and MediaID name its stream.
+  /// A registry entry with an SDP, by its IDExternal; its MediaIDType and MediaID name its
+  /// stream.
   func registeredSource(
     named name: String,
     with context: Context
